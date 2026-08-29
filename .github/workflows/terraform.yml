@@ -44,11 +44,7 @@ jobs:
 
       - name: Init
         working-directory: terraform/stacks/platform
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="key=platform/terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION }}"
+        run: terraform init
 
       - name: Validate
         working-directory: terraform/stacks/platform
@@ -91,11 +87,7 @@ jobs:
 
       - name: Init
         working-directory: terraform/stacks/${{ matrix.stack }}
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="key=${{ matrix.stack }}/terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION }}"
+        run: terraform init
 
       - name: Validate
         working-directory: terraform/stacks/${{ matrix.stack }}

@@ -115,8 +115,8 @@ stack has not run yet.
 - Terraform 1.6 or later.
 - AWS provider 6.x. Terraform downloads it during `terraform init`.
 - Three AWS accounts, or three sets of credentials that map to them.
-- An S3 bucket for the Terraform state. The pipeline supplies it through
-  `-backend-config`.
+- An S3 bucket for the Terraform state, named in each stack's `providers.tf`.
+  State locking uses `use_lockfile`, so no DynamoDB table is needed.
 - One pipeline role with OIDC trust to this repository. Each stack role trusts
   that pipeline role.
 - All three accounts use the same region. EventBridge sends events to
@@ -144,7 +144,6 @@ Configure these GitHub repository variables:
 
 ```
 AWS_REGION
-TF_STATE_BUCKET
 PIPELINE_ROLE_ARN
 PLATFORM_DEPLOY_ROLE_ARN
 FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
@@ -161,7 +160,7 @@ inspect a plan, copy `terraform.tfvars.example` to `terraform.tfvars`, then:
 
 ```bash
 cd terraform/stacks/platform
-terraform init -backend=false
+terraform init
 terraform plan
 ```
 

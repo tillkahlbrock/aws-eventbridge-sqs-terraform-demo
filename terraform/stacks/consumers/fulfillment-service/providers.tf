@@ -14,7 +14,12 @@ terraform {
     }
   }
 
-  backend "s3" {}
+  backend "s3" {
+    bucket       = "async-demo-terraform-state"
+    key          = "consumers/fulfillment-service/terraform.tfstate"
+    region       = "eu-central-1"
+    use_lockfile = true
+  }
 }
 
 provider "aws" {

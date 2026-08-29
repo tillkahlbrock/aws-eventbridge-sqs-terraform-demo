@@ -13,8 +13,12 @@ terraform {
     }
   }
 
-  # The pipeline supplies bucket, key and region through -backend-config.
-  backend "s3" {}
+  backend "s3" {
+    bucket       = "async-demo-terraform-state"
+    key          = "platform/terraform.tfstate"
+    region       = "eu-central-1"
+    use_lockfile = true
+  }
 }
 
 provider "aws" {
