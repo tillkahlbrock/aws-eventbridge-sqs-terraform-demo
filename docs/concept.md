@@ -78,3 +78,4 @@ Possible solutions
 - Securing the platform resources in the workload accounts (tags + SCP)
 - Least privilege at deploy time: replace the single admin role in the platform account with a scoped role per stack (limits a compromised pipeline, stops a stack from overwriting the last-write-wins bus resource policy)
 - Bind producers to a principal, not just an account: add an `aws:PrincipalArn` condition per producer to the bus resource policy
+- Credentials per stack: the consumer stack needs two accounts, so it cannot run from one set of pipeline credentials. Add `assume_role` per provider, or split it into two jobs

@@ -1,8 +1,3 @@
-# Stack: platform. Owner: Platform Team.
-# Deploys into: platform account.
-#
-# The pipeline holds base credentials and assumes the deploy role of this stack.
-
 terraform {
   required_version = ">= 1.6"
 
@@ -23,9 +18,4 @@ terraform {
 
 provider "aws" {
   region = var.region
-
-  assume_role {
-    role_arn     = var.deploy_role_arn
-    session_name = "terraform-platform-stack"
-  }
 }
