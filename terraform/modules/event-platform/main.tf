@@ -21,8 +21,8 @@ resource "aws_cloudwatch_event_bus" "this" {
   tags = local.tags
 }
 
-# The resource policy authorizes the sender workload accounts.
-# The sender identity also needs its own identity policy. See the event-producer module.
+# Authorizes the registered producer accounts. The producing identity also needs
+# its own events:PutEvents policy, which the product team owns.
 resource "aws_cloudwatch_event_bus_policy" "this" {
   count = length(var.allowed_producer_account_ids) > 0 ? 1 : 0
 

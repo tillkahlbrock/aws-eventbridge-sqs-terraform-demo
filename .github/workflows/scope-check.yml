@@ -24,7 +24,7 @@ jobs:
           echo "Changed files:"
           echo "$changed"
 
-          product_paths='^terraform/stacks/(producers|consumers)/'
+          product_paths='^terraform/stacks/consumers/'
           shared_paths='^(terraform/modules/|terraform/stacks/platform/|\.github/)'
 
           touches_product=$(echo "$changed" | grep -Ec "$product_paths" || true)

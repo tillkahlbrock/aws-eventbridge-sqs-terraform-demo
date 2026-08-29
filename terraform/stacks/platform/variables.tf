@@ -14,13 +14,3 @@ variable "event_bus_name" {
   type        = string
   default     = "async-demo"
 }
-
-variable "producer_account_ids" {
-  description = "AWS account IDs of the workload accounts that may publish to the shared event bus."
-  type        = set(string)
-
-  validation {
-    condition     = length(var.producer_account_ids) > 0
-    error_message = "At least one producer account is required."
-  }
-}

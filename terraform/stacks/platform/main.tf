@@ -4,7 +4,7 @@ module "event_platform" {
   source = "../../modules/event-platform"
 
   name                         = var.event_bus_name
-  allowed_producer_account_ids = var.producer_account_ids
+  allowed_producer_account_ids = toset([for producer in local.producers : producer.account_id])
 }
 
 output "event_bus_name" {

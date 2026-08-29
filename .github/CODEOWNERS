@@ -7,5 +7,7 @@
 /.github/                                       @tillkahlbrock/platform-team
 
 # Product teams own their own stack. The Platform Team still reviews and merges.
-/terraform/stacks/producers/order-service/      @tillkahlbrock/order-team @tillkahlbrock/platform-team
 /terraform/stacks/consumers/fulfillment-service/ @tillkahlbrock/fulfillment-team @tillkahlbrock/platform-team
+
+# Producer onboarding is a one-line change here, reviewed by the Platform Team.
+/terraform/stacks/platform/producers.tf         @tillkahlbrock/platform-team

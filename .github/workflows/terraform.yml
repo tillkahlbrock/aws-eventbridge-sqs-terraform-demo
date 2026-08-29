@@ -59,7 +59,6 @@ jobs:
         run: terraform plan -out=tfplan
         env:
           TF_VAR_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
-          TF_VAR_producer_account_ids: '["${{ vars.SENDER_ACCOUNT_ID }}"]'
 
       - name: Apply
         if: github.ref == 'refs/heads/main'
@@ -76,8 +75,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - stack: producers/order-service
-            deploy_role_var: ORDER_SERVICE_DEPLOY_ROLE_ARN
           - stack: consumers/fulfillment-service
             deploy_role_var: FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
     steps:

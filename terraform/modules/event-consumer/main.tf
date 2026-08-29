@@ -1,7 +1,3 @@
-# Receiver Product Team resources. They span two accounts.
-#   aws.platform  - the EventBridge rule, its target and the execution role.
-#   aws.receiver  - the consumer queue, the dead-letter queue and the queue policy.
-
 locals {
   tags = merge({
     ManagedBy   = "Terraform"

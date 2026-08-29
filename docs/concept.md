@@ -4,7 +4,7 @@
 
 - [] Implement the basic infra
 - [] Implement the module to be used by the teams
-- [] Implement client code for publishing and consuming messages
+- [] Implement client code for publishing and consuming messages (a package that also hold (or is able to look up) the bus address)
 - [] Implement message schema + tooling
 - [] Finish this concept
 
@@ -77,4 +77,4 @@ Possible solutions
 - Protobuf or similar for event serialization and client code generation
 - Securing the platform resources in the workload accounts (tags + SCP)
 - Least privilege at deploy time: replace the single admin role in the platform account with a scoped role per stack (limits a compromised pipeline, stops a stack from overwriting the last-write-wins bus resource policy)
-- A ready-to-assume publish role for producers, if manual testing becomes frequent (today the module only creates the IAM policy)
+- Bind producers to a principal, not just an account: add an `aws:PrincipalArn` condition per producer to the bus resource policy

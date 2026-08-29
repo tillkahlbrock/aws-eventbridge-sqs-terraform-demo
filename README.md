@@ -20,8 +20,8 @@ This repository deviates from section 3 of that document. See
 
 ## How a product team makes a change
 
-1. The team edits its own stack under `terraform/stacks/producers/` or
-   `terraform/stacks/consumers/`.
+1. A consumer team edits its own stack under `terraform/stacks/consumers/`. A
+   producer team adds one line to `terraform/stacks/platform/producers.tf`.
 2. The team opens a pull request.
 3. `scope-check` confirms that the pull request touches one product stack and no
    shared code.
@@ -50,8 +50,8 @@ not an audit of arbitrary Terraform.
 │ Sender Workload Account      │  │ Receiver Workload Account    │
 │ Product Team A               │  │ Product Team B               │
 │                              │  │                              │
-│ Producer IAM Policy / Role   │  │ SQS Queue + DLQ              │
-│ (application not included)   │  │ Queue Policy                 │
+│ Nothing deployed here.       │  │ SQS Queue + DLQ              │
+│ The team owns its own IAM.   │  │ Queue Policy                 │
 └──────────────────────────────┘  │ (consumer not included)      │
                                   └──────────────────────────────┘
 ```
@@ -65,7 +65,7 @@ uses two provider configurations for this reason.
 | Account           | Owner          | Purpose                         | Resources in this demo                                              |
 |-------------------|----------------|---------------------------------|---------------------------------------------------------------------|
 | Platform          | Platform Team  | Shared eventing foundation      | Event bus, resource policy, consumer EventBridge rule and target    |
-| Sender workload   | Product Team A | Publishes domain events         | IAM policy for `events:PutEvents`                                   |
+| Sender workload   | Product Team A | Publishes domain events         | None. The team grants its own service `events:PutEvents`.           |
 | Receiver workload | Product Team B | Receives selected domain events | SQS queue, dead-letter queue, redrive configuration, queue policy   |
 
 ## Repository layout
@@ -79,12 +79,10 @@ uses two provider configurations for this reason.
 terraform/
 ├── modules/                            Platform Team only
 │   ├── event-platform/                 shared event bus and its resource policy
-│   ├── event-producer/                 permission to publish to the shared bus
 │   └── event-consumer/                 subscription, rule, target, queues
 └── stacks/
     ├── platform/                       Platform Team
-    ├── producers/
-    │   └── order-service/              Product Team A
+    │   └── producers.tf                producer registry, one line per team
     └── consumers/
         └── fulfillment-service/        Product Team B
 ```
@@ -97,7 +95,6 @@ not. A product stack apply cannot damage the shared event bus.
 | Stack                                       | Owner          | Modules used                                 | Deploys into                           |
 |---------------------------------------------|----------------|----------------------------------------------|----------------------------------------|
 | `stacks/platform`                           | Platform Team  | `event-platform`                             | Platform account                       |
-| `stacks/producers/order-service`            | Product Team A | `event-producer`                             | Sender workload account                |
 | `stacks/consumers/fulfillment-service`      | Product Team B | `event-consumer`                             | Platform and receiver workload account |
 
 Stacks are named after the service that owns them, not after the AWS account
@@ -133,8 +130,6 @@ through the `assume_role` block in its `providers.tf`.
 | Stack                  | Assumes                                          | In account        |
 |------------------------|--------------------------------------------------|-------------------|
 | `platform`             | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
-| `order-service`        | `ORDER_SERVICE_DEPLOY_ROLE_ARN`                  | Sender workload   |
-| `order-service`        | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
 | `fulfillment-service`  | `FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN`            | Receiver workload |
 | `fulfillment-service`  | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
 
@@ -152,10 +147,12 @@ AWS_REGION
 TF_STATE_BUCKET
 PIPELINE_ROLE_ARN
 PLATFORM_DEPLOY_ROLE_ARN
-SENDER_ACCOUNT_ID
-ORDER_SERVICE_DEPLOY_ROLE_ARN
 FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
 ```
+
+Producer accounts are **not** configured here. They live in
+`terraform/stacks/platform/producers.tf`, so that authorizing a producer appears
+in a diff.
 
 ## Running a stack locally
 
@@ -196,9 +193,10 @@ The consumer subscribes with this event pattern:
 These commands are documentation only. They are not part of the Terraform
 configuration.
 
-Publish one test event from the sender workload account. The module creates the
-IAM policy but no identity, so attach `iam_policy_arn` to the identity you use.
-Use the event bus ARN, because `PutEvents` targets a bus in another account.
+Publish one test event from the sender workload account. The identity you use
+needs `events:PutEvents` on the bus. This repository does not grant it, so use a
+principal that already has it. Use the event bus ARN, because `PutEvents`
+targets a bus in another account.
 
 ```bash
 aws events put-events \
@@ -230,9 +228,10 @@ aws sqs receive-message \
 
 Two independent permissions control the publish path. Both must allow the call.
 
-1. The event bus resource policy allows `events:PutEvents` from the configured
-   sender account.
-2. The producer IAM policy allows `events:PutEvents` on that bus ARN only.
+1. The event bus resource policy allows `events:PutEvents` from each registered
+   producer account. The Platform Team owns this side.
+2. An identity policy in that account allows `events:PutEvents` on the bus ARN.
+   The product team owns this side, and this repository does not create it.
 
 The delivery path uses an execution role.
 
@@ -286,9 +285,24 @@ by hand. This repository uses one central repository with one pipeline.
 | Specification                        | This repository                             |
 |--------------------------------------|---------------------------------------------|
 | `examples/platform-account`          | `stacks/platform`                           |
-| `examples/sender-workload-account`   | `stacks/producers/order-service`            |
+| `examples/sender-workload-account`   | Removed. See below.                         |
 | `examples/receiver-workload-account` | `stacks/consumers/fulfillment-service`      |
 | Event bus ARN copied into `tfvars`   | Event bus resolved by name with a data source |
+
+### Why there is no producer stack
+
+The specification requires an IAM policy in the sender account
+(section 4.2, and an acceptance criterion). This repository does not create one.
+
+A team that publishes with the AWS SDK already knows it needs `events:PutEvents`.
+A policy handed over by the platform enforces nothing, because the team can
+attach any policy it likes. The platform side that does bind is the bus resource
+policy, and the Platform Team owns that.
+
+With the policy gone, the `event-producer` module and the producer stack held no
+resources, so both were removed. A producer now registers by adding one line to
+`terraform/stacks/platform/producers.tf`. That list cannot be split into
+per-team stacks: there is one bus resource policy and it is last-write-wins.
 
 ### Why the stacks carry service names
 
@@ -354,6 +368,9 @@ them.
 - The execution role trust policy has no `aws:SourceArn` or `aws:SourceAccount`
   condition. It follows the AWS documentation example. Add a condition after you
   verify it against the EventBridge behaviour in your accounts.
+- Nothing verifies that a registered producer account actually restricts
+  `events:PutEvents` to one service. The bus resource policy trusts the whole
+  account. An `aws:PrincipalArn` condition per producer would bind it.
 - The queues use SQS-managed encryption defaults. There is no customer-managed
   KMS key, and therefore no cross-account key policy.
 - The pipeline applies without a manual gate. Add a GitHub environment approval
