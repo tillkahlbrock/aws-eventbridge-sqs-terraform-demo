@@ -27,8 +27,6 @@ locals {
   # form a dependency cycle.
   platform_deploy_role_arn = "arn:${local.partition}:iam::${data.aws_caller_identity.platform.account_id}:role/${var.platform_deploy_role_name}"
   receiver_deploy_role_arn = "arn:${local.partition}:iam::${data.aws_caller_identity.receiver.account_id}:role/${var.receiver_deploy_role_name}"
-
-  administrator_access_arn = "arn:${local.partition}:iam::aws:policy/AdministratorAccess"
 }
 
 # --------------------------------------------------------------------------
@@ -196,7 +194,7 @@ resource "aws_iam_role_policy_attachment" "platform_deploy" {
   provider = aws.platform
 
   role       = aws_iam_role.platform_deploy.name
-  policy_arn = local.administrator_access_arn
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 resource "aws_iam_role" "receiver_deploy" {
@@ -224,5 +222,5 @@ resource "aws_iam_role_policy_attachment" "receiver_deploy" {
   provider = aws.receiver
 
   role       = aws_iam_role.receiver_deploy.name
-  policy_arn = local.administrator_access_arn
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
