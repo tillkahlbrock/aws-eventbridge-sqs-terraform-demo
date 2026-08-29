@@ -82,10 +82,8 @@ resource "aws_sqs_queue_policy" "this" {
 resource "aws_iam_role" "eventbridge_target" {
   provider = aws.platform
 
-  name                 = local.execution_role_name
-  path                 = var.execution_role_path
-  permissions_boundary = var.execution_role_permissions_boundary_arn
-  tags                 = local.tags
+  name = local.execution_role_name
+  tags = local.tags
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

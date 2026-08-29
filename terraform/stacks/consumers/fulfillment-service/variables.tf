@@ -9,7 +9,7 @@ variable "deploy_role_arn" {
   type        = string
 }
 
-variable "subscription_deployer_role_arn" {
+variable "subscription_deploy_role_arn" {
   description = "Scoped role in the platform account. The platform stack creates it."
   type        = string
 }
@@ -18,10 +18,4 @@ variable "event_bus_name" {
   description = "Name of the shared event bus. The name is the contract with the Platform Team."
   type        = string
   default     = "async-demo"
-}
-
-variable "permissions_boundary_name" {
-  description = "Name of the permissions boundary that every EventBridge execution role must carry. The platform stack creates it."
-  type        = string
-  default     = "event-subscription-boundary"
 }

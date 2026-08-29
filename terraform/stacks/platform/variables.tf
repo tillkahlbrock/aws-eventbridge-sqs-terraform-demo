@@ -26,6 +26,6 @@ variable "producer_account_ids" {
 }
 
 variable "pipeline_role_arns" {
-  description = "Pipeline roles that may assume the subscription deployer role in the platform account."
+  description = "Pipeline roles that may assume the subscription deploy role in the platform account."
   type        = list(string)
 }

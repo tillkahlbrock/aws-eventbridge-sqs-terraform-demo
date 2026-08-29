@@ -67,23 +67,6 @@ variable "eventbridge_execution_role_name" {
   default     = null
 }
 
-variable "execution_role_path" {
-  description = "IAM path of the platform-side execution role. The deployer role of the platform team allows this path only."
-  type        = string
-  default     = "/event-subscriptions/"
-
-  validation {
-    condition     = can(regex("^/.*/$", var.execution_role_path))
-    error_message = "The execution_role_path must start and end with a slash."
-  }
-}
-
-variable "execution_role_permissions_boundary_arn" {
-  description = "Permissions boundary for the platform-side execution role. The platform team requires it when a pipeline applies this module."
-  type        = string
-  default     = null
-}
-
 variable "tags" {
   description = "Additional tags to apply to taggable resources."
   type        = map(string)

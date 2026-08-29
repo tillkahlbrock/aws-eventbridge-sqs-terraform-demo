@@ -1,9 +1,3 @@
-# The Platform Team owns this stack. It runs first in the pipeline.
-#
-# The stack publishes two contracts that the product stacks look up by name:
-#   - the shared event bus
-#   - the permissions boundary for EventBridge execution roles
-
 module "event_platform" {
   source = "../../modules/event-platform"
 
@@ -12,8 +6,8 @@ module "event_platform" {
 }
 
 # Limits what a consumer stack can do in the platform account.
-module "subscription_deployer_role" {
-  source = "../../modules/subscription-deployer-role"
+module "subscription_deploy_role" {
+  source = "../../modules/subscription-deploy-role"
 
   event_bus_name         = module.event_platform.event_bus_name
   event_bus_arn          = module.event_platform.event_bus_arn
@@ -30,12 +24,7 @@ output "event_bus_arn" {
   value       = module.event_platform.event_bus_arn
 }
 
-output "subscription_deployer_role_arn" {
+output "subscription_deploy_role_arn" {
   description = "Role that the pipeline assumes to apply consumer stacks in the platform account."
-  value       = module.subscription_deployer_role.deployer_role_arn
-}
-
-output "subscription_permissions_boundary_name" {
-  description = "Name of the permissions boundary that consumer stacks look up."
-  value       = module.subscription_deployer_role.permissions_boundary_name
+  value       = module.subscription_deploy_role.role_arn
 }

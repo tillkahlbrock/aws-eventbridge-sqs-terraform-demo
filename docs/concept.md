@@ -73,6 +73,6 @@ Possible solutions
 
 ### Ideas for improvement / evolution
 
-- An abstraction, so that product teams do not need to write terraform code
+- An abstraction, so that product teams do not need to write terraform code. Maybe even self-service via chatbot or the like.
 - Protobuf or similar for event serialization and client code generation
 - Securing the platform resources in the workload accounts (tags + SCP)

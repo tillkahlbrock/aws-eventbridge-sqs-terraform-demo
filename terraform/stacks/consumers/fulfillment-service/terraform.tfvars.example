@@ -1,4 +1,4 @@
 region                         = "eu-central-1"
 deploy_role_arn                = "arn:aws:iam::333333333333:role/terraform-fulfillment-service-deploy"
-subscription_deployer_role_arn = "arn:aws:iam::222222222222:role/event-subscription-deployer"
+subscription_deploy_role_arn    = "arn:aws:iam::222222222222:role/event-subscription-deploy"
 event_bus_name                 = "async-demo"
