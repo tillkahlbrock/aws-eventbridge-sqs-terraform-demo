@@ -1,0 +1,52 @@
+# Ownership in this repository is enforced by review, not by AWS credentials.
+# This check keeps review cheap. A pull request that touches one product stack
+# must touch nothing else. A reviewer can then read the event pattern instead of
+# auditing Terraform.
+
+name: scope-check
+
+on:
+  pull_request:
+
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: A product stack pull request must not touch shared code
+        run: |
+          set -euo pipefail
+          base="origin/${{ github.base_ref }}"
+          changed="$(git diff --name-only "$base"...HEAD)"
+          echo "Changed files:"
+          echo "$changed"
+
+          product_paths='^terraform/stacks/(producers|consumers)/'
+          shared_paths='^(terraform/modules/|terraform/stacks/platform/|\.github/)'
+
+          touches_product=$(echo "$changed" | grep -Ec "$product_paths" || true)
+          touches_shared=$(echo "$changed" | grep -Ec "$shared_paths" || true)
+
+          if [ "$touches_product" -gt 0 ] && [ "$touches_shared" -gt 0 ]; then
+            echo "::error::This pull request changes a product stack and shared code."
+            echo "::error::Split it. Shared changes need a separate review."
+            exit 1
+          fi
+
+          stacks=$(echo "$changed" \
+            | grep -E "$product_paths" \
+            | cut -d/ -f1-4 \
+            | sort -u || true)
+          count=$(echo "$stacks" | grep -c . || true)
+
+          if [ "$count" -gt 1 ]; then
+            echo "::error::This pull request changes more than one product stack:"
+            echo "$stacks"
+            echo "::error::Open one pull request per stack."
+            exit 1
+          fi
+
+          echo "Scope check passed."

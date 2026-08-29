@@ -1,0 +1,4 @@
+region                 = "eu-central-1"
+deploy_role_arn        = "arn:aws:iam::111111111111:role/terraform-order-service-deploy"
+platform_read_role_arn = "arn:aws:iam::222222222222:role/terraform-platform-read"
+event_bus_name         = "async-demo"

@@ -1,5 +1,0 @@
-region               = "eu-central-1"
-platform_aws_profile = "platform-account"
-receiver_aws_profile = "receiver-workload-account"
-event_bus_name       = "async-demo"
-event_bus_arn        = "arn:aws:events:eu-central-1:222222222222:event-bus/async-demo"

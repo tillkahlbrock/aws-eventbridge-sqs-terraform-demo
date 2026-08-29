@@ -1,11 +1,12 @@
 # Terraform
+# The dependency lock files are tracked. One pipeline applies every stack,
+# so the provider version must be reproducible.
 **/.terraform/*
 *.tfstate
 *.tfstate.*
 *.tfplan
 crash.log
 crash.*.log
-.terraform.lock.hcl
 .terraformrc
 terraform.rc
 

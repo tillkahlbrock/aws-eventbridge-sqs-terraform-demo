@@ -1,0 +1,119 @@
+# One repository, one pipeline, one state per stack.
+#
+# The pipeline holds base credentials only. Each stack assumes its own role
+# through the assume_role block in its providers.tf. The consumer stack reaches
+# the platform account through the scoped subscription deployer role.
+#
+# Order: the platform stack publishes the event bus and the permissions
+# boundary. The product stacks resolve both by name, so they run after it.
+
+name: terraform
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  platform:
+    name: platform
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive terraform/
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PIPELINE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Init
+        working-directory: terraform/stacks/platform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=platform/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+
+      - name: Validate
+        working-directory: terraform/stacks/platform
+        run: terraform validate
+
+      - name: Plan
+        working-directory: terraform/stacks/platform
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
+          TF_VAR_producer_account_ids: '["${{ vars.SENDER_ACCOUNT_ID }}"]'
+          TF_VAR_pipeline_role_arns: '["${{ vars.PIPELINE_ROLE_ARN }}"]'
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform/stacks/platform
+        run: terraform apply -auto-approve tfplan
+
+  product-stacks:
+    name: ${{ matrix.stack }}
+    needs: platform
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
+    strategy:
+      # One failing product stack must not block the others.
+      fail-fast: false
+      matrix:
+        include:
+          - stack: producers/order-service
+            deploy_role_var: ORDER_SERVICE_DEPLOY_ROLE_ARN
+          - stack: consumers/fulfillment-service
+            deploy_role_var: FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PIPELINE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Init
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ matrix.stack }}/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+
+      - name: Validate
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform validate
+
+      - name: Plan
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_deploy_role_arn: ${{ vars[matrix.deploy_role_var] }}
+          TF_VAR_platform_read_role_arn: ${{ vars.PLATFORM_READ_ROLE_ARN }}
+          TF_VAR_subscription_deployer_role_arn: ${{ vars.SUBSCRIPTION_DEPLOYER_ROLE_ARN }}
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform apply -auto-approve tfplan

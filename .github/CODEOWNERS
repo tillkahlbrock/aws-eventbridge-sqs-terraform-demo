@@ -1,0 +1,11 @@
+# The Platform Team owns the repository. Every pull request needs its approval.
+*                                               @tillkahlbrock/platform-team
+
+# The reusable modules and the shared foundation are platform-only.
+/terraform/modules/                             @tillkahlbrock/platform-team
+/terraform/stacks/platform/                     @tillkahlbrock/platform-team
+/.github/                                       @tillkahlbrock/platform-team
+
+# Product teams own their own stack. The Platform Team still reviews and merges.
+/terraform/stacks/producers/order-service/      @tillkahlbrock/order-team @tillkahlbrock/platform-team
+/terraform/stacks/consumers/fulfillment-service/ @tillkahlbrock/fulfillment-team @tillkahlbrock/platform-team
