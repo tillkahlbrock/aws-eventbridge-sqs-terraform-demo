@@ -14,24 +14,6 @@ variable "policy_name" {
   default     = "async-demo-put-events"
 }
 
-variable "create_demo_role" {
-  description = "Create an assumable demo role and attach the policy to it. Set this to false to attach the policy to an existing runtime role instead."
-  type        = bool
-  default     = true
-}
-
-variable "demo_role_name" {
-  description = "Name of the optional demo role. Defaults to the policy name with a -role suffix."
-  type        = string
-  default     = null
-}
-
-variable "demo_role_trusted_principal_arns" {
-  description = "Principals that can assume the demo role. Defaults to the root of the account that deploys this module."
-  type        = list(string)
-  default     = []
-}
-
 variable "tags" {
   description = "Additional tags to apply to taggable resources."
   type        = map(string)

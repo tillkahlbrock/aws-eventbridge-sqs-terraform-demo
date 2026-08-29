@@ -76,4 +76,5 @@ Possible solutions
 - An abstraction, so that product teams do not need to write terraform code. Maybe even self-service via chatbot or the like.
 - Protobuf or similar for event serialization and client code generation
 - Securing the platform resources in the workload accounts (tags + SCP)
-- Least privilege for the deploy pipeline: the platform account currently uses one administrative role for every stack. Replace it with a scoped role per stack (rules on the shared bus only, explicit deny on the event bus and its resource policy). This limits a compromised pipeline, and it stops a product stack from overwriting the bus resource policy, which is last-write-wins.
+- Least privilege at deploy time: replace the single admin role in the platform account with a scoped role per stack (limits a compromised pipeline, stops a stack from overwriting the last-write-wins bus resource policy)
+- A ready-to-assume publish role for producers, if manual testing becomes frequent (today the module only creates the IAM policy)

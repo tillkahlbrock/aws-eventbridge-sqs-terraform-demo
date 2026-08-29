@@ -65,7 +65,7 @@ uses two provider configurations for this reason.
 | Account           | Owner          | Purpose                         | Resources in this demo                                              |
 |-------------------|----------------|---------------------------------|---------------------------------------------------------------------|
 | Platform          | Platform Team  | Shared eventing foundation      | Event bus, resource policy, consumer EventBridge rule and target    |
-| Sender workload   | Product Team A | Publishes domain events         | IAM policy and optional demo role for `events:PutEvents`            |
+| Sender workload   | Product Team A | Publishes domain events         | IAM policy for `events:PutEvents`                                   |
 | Receiver workload | Product Team B | Receives selected domain events | SQS queue, dead-letter queue, redrive configuration, queue policy   |
 
 ## Repository layout
@@ -196,8 +196,9 @@ The consumer subscribes with this event pattern:
 These commands are documentation only. They are not part of the Terraform
 configuration.
 
-Publish one test event from the sender workload account. Use the event bus ARN,
-because `PutEvents` targets a bus in another account.
+Publish one test event from the sender workload account. The module creates the
+IAM policy but no identity, so attach `iam_policy_arn` to the identity you use.
+Use the event bus ARN, because `PutEvents` targets a bus in another account.
 
 ```bash
 aws events put-events \
@@ -359,6 +360,3 @@ them.
   for the platform stack.
 - There is no schema registry, no event catalog and no event versioning.
 - There is no multi-region setup, no disaster recovery and no alarming.
-- The optional demo role in the sender account is a convenience for manual
-  tests. A real workload attaches the IAM policy to its own runtime role.
-  Set `create_demo_role = false` for that case.
