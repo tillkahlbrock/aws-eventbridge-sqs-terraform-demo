@@ -8,10 +8,10 @@ The Platform Team owns this repository. One pipeline applies every stack across
 three AWS accounts. A product team changes its own eventing setup by opening a
 pull request here.
 
-**Application producers and consumers are intentionally omitted.** The
-repository contains no Lambda function, no container and no event payload
-handling. Use the AWS CLI commands in [Manual test](#manual-test) to verify the
-infrastructure.
+`apps/` holds two small TypeScript samples that publish and consume the demo
+event. They run on your machine. There is no Lambda function and no container:
+deployment of the applications is out of scope. See
+[Sample applications](#sample-applications).
 
 The original requirements are in
 [`docs/aws-eventbridge-sqs-terraform-demo-spec.md`](docs/aws-eventbridge-sqs-terraform-demo-spec.md).
@@ -73,6 +73,9 @@ uses two provider configurations for this reason.
 ├── CODEOWNERS                          who must approve which path
 └── workflows/
     └── terraform.yml                   validate, plan on pull request, apply on main
+apps/
+├── order-service/                      publishes OrderCreated
+└── fulfillment-service/                consumes it from the queue
 terraform/
 ├── bootstrap/                          run once, by hand, local state
 ├── modules/                            Platform Team only
@@ -222,6 +225,40 @@ The consumer subscribes with this event pattern:
   "detail-type": ["OrderCreated"]
 }
 ```
+
+## Sample applications
+
+Two Node.js samples in `apps/`, one per team. They are deliberately small: one
+publish call and one receive loop. There is no shared library and no event
+envelope yet.
+
+Both read their AWS credentials from the environment, so `AWS_PROFILE` works.
+The identity you use needs `events:PutEvents` on the bus, or
+`sqs:ReceiveMessage` and `sqs:DeleteMessage` on the queue. This repository does
+not grant either. See [Why there is no producer stack](#why-there-is-no-producer-stack).
+
+Start the consumer. It long-polls until you press Ctrl-C.
+
+```bash
+cd apps/fulfillment-service
+npm install
+export AWS_REGION=eu-central-1
+export QUEUE_URL="<queue_url output of the fulfillment-service stack>"
+npm start
+```
+
+Publish an event in a second terminal. The order id is optional.
+
+```bash
+cd apps/order-service
+npm install
+export AWS_REGION=eu-central-1
+export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
+npm start -- ORD-1001
+```
+
+The consumer prints `Received OrderCreated for order ORD-1001`, then deletes the
+message.
 
 ## Manual test
 
@@ -402,6 +439,9 @@ them.
 - The execution role trust policy has no `aws:SourceArn` or `aws:SourceAccount`
   condition. It follows the AWS documentation example. Add a condition after you
   verify it against the EventBridge behaviour in your accounts.
+- The sample applications have no event envelope, no schema, no retries and no
+  structured logging. They exist to show the path, not to be copied into a
+  service.
 - Nothing verifies that a registered producer account actually restricts
   `events:PutEvents` to one service. The bus resource policy trusts the whole
   account. An `aws:PrincipalArn` condition per producer would bind it.
