@@ -23,11 +23,9 @@ This repository deviates from section 3 of that document. See
 1. A consumer team edits its own stack under `terraform/stacks/consumers/`. A
    producer team adds one line to `terraform/stacks/platform/producers.tf`.
 2. The team opens a pull request.
-3. `scope-check` confirms that the pull request touches one product stack and no
-   shared code.
-4. `terraform` plans every stack and posts the result.
-5. The Platform Team reviews and merges. `CODEOWNERS` requires that approval.
-6. The pipeline applies the stacks on `main`.
+3. `terraform` formats, validates and plans every stack.
+4. The Platform Team reviews and merges. `CODEOWNERS` requires that approval.
+5. The pipeline applies the stacks on `main`.
 
 A product stack is a provider block, a module block and its outputs. A routine
 change edits the event pattern and nothing else. Review stays a reading task,
@@ -74,8 +72,7 @@ uses two provider configurations for this reason.
 .github/
 ├── CODEOWNERS                          who must approve which path
 └── workflows/
-    ├── terraform.yml                   plan on pull request, apply on main
-    └── scope-check.yml                 one product stack per pull request
+    └── terraform.yml                   validate, plan on pull request, apply on main
 terraform/
 ├── bootstrap/                          run once, by hand, local state
 ├── modules/                            Platform Team only
@@ -301,7 +298,8 @@ terraform fmt -check -recursive terraform/
 
 Run `terraform validate` in each stack after `terraform init`.
 
-The pipeline runs both checks for every stack on every pull request.
+The pipeline runs both checks for every root on every pull request. The
+plan and apply jobs are skipped until `PIPELINE_ROLE_ARN` is set.
 
 ## Deviations from the specification
 
@@ -367,13 +365,11 @@ A product team cannot reach the platform account at all. That control is strong,
 and the central model gives it up: one pipeline holds credentials for all three
 accounts.
 
-Three controls replace it.
+`CODEOWNERS` replaces it: the Platform Team approves every pull request.
 
-1. `CODEOWNERS` requires Platform Team approval on every pull request.
-2. `scope-check` blocks a pull request that mixes a product stack with shared
-   code.
-Both are process controls. Neither holds when the runner itself is the problem.
-A scoped deploy role would, and that is the recorded next step.
+That is a process control. It does not hold when the runner itself is the
+problem. A scoped deploy role per stack would, and that is the recorded next
+step in [`docs/concept.md`](docs/concept.md).
 
 ## Known demo limitations
 

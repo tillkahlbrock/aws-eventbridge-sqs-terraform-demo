@@ -1,12 +1,3 @@
-# One repository, one pipeline, one state per stack.
-#
-# The pipeline holds base credentials only. Each stack assumes its own role
-# through the assume_role block in its providers.tf. The platform account uses
-# one administrative role. A scoped role per stack is a later improvement.
-#
-# Order: the platform stack publishes the event bus and the permissions
-# boundary. The product stacks resolve both by name, so they run after it.
-
 name: terraform
 
 on:
@@ -23,10 +14,9 @@ env:
   TF_INPUT: "false"
 
 jobs:
-  platform:
-    name: platform
+  validate:
+    name: validate
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +27,30 @@ jobs:
       - name: Check formatting
         run: terraform fmt -check -recursive terraform/
 
+      - name: Validate every root
+        run: |
+          set -euo pipefail
+          for root in terraform/bootstrap \
+                      terraform/stacks/platform \
+                      terraform/stacks/consumers/fulfillment-service; do
+            echo "::group::$root"
+            terraform -chdir="$root" init -backend=false
+            terraform -chdir="$root" validate
+            echo "::endgroup::"
+          done
+
+  platform:
+    name: platform
+    needs: validate
+    if: vars.PIPELINE_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.PIPELINE_ROLE_ARN }}
@@ -45,10 +59,6 @@ jobs:
       - name: Init
         working-directory: terraform/stacks/platform
         run: terraform init
-
-      - name: Validate
-        working-directory: terraform/stacks/platform
-        run: terraform validate
 
       - name: Plan
         working-directory: terraform/stacks/platform
@@ -61,13 +71,12 @@ jobs:
         working-directory: terraform/stacks/platform
         run: terraform apply -auto-approve tfplan
 
-  product-stacks:
+  consumers:
     name: ${{ matrix.stack }}
     needs: platform
+    if: vars.PIPELINE_ROLE_ARN != ''
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
     strategy:
-      # One failing product stack must not block the others.
       fail-fast: false
       matrix:
         include:
@@ -88,10 +97,6 @@ jobs:
       - name: Init
         working-directory: terraform/stacks/${{ matrix.stack }}
         run: terraform init
-
-      - name: Validate
-        working-directory: terraform/stacks/${{ matrix.stack }}
-        run: terraform validate
 
       - name: Plan
         working-directory: terraform/stacks/${{ matrix.stack }}
