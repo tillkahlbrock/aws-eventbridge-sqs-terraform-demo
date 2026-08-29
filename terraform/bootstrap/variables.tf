@@ -16,13 +16,13 @@ variable "receiver_profile" {
   default     = null
 }
 
-variable "github_repository" {
-  description = "Repository that may assume the pipeline role, as owner/name."
-  type        = string
+variable "github_subject_patterns" {
+  description = "Subject claims that may assume the pipeline role. GitHub issues repo:<owner>@<owner-id>/<name>@<repo-id>:<ref> for this repository, not repo:<owner>/<name>:<ref>. Read the ids with: gh api repos/OWNER/NAME --jq '.owner.id, .id'"
+  type        = list(string)
 
   validation {
-    condition     = can(regex("^[^/]+/[^/]+$", var.github_repository))
-    error_message = "The github_repository must have the form owner/name."
+    condition     = length(var.github_subject_patterns) > 0
+    error_message = "At least one subject pattern is required."
   }
 }
 
@@ -54,4 +54,10 @@ variable "receiver_deploy_role_name" {
   description = "Name of the deploy role in the receiver workload account."
   type        = string
   default     = "terraform-fulfillment-service-deploy"
+}
+
+variable "additional_trusted_principal_arns" {
+  description = "Gives these principal temporary access to deploy. Just for demo purpose."
+  type        = list(string)
+  default     = []
 }

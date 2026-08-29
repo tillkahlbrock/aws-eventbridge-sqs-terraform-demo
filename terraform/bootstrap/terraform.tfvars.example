@@ -1,4 +1,9 @@
-region            = "eu-central-1"
-platform_profile  = "platform-account"
-receiver_profile  = "receiver-workload-account"
-github_repository = "tillkahlbrock/aws-eventbridge-sqs-terraform-demo"
+region           = "eu-central-1"
+platform_profile = "platform-account"
+receiver_profile = "receiver-workload-account"
+
+# GitHub issues the subject claim with numeric owner and repository ids.
+# Read them with: gh api repos/OWNER/NAME --jq '.owner.id, .id'
+github_subject_patterns = [
+  "repo:my-org@1234567/my-repo@89012345:*",
+]

@@ -144,6 +144,17 @@ Copy the outputs into the repository variables listed under
 Set `create_github_oidc_provider = false` when the platform account already has
 a GitHub OIDC provider. An account can only have one.
 
+`github_subject_patterns` must match the `sub` claim that GitHub actually sends.
+GitHub uses numeric ids, `repo:<owner>@<owner-id>/<name>@<repo-id>:*`, not
+`repo:<owner>/<name>:*`. Read the ids with:
+
+```bash
+gh api repos/OWNER/NAME --jq '.owner.id, .id'
+```
+
+If the pipeline fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`,
+look up the rejected claim in CloudTrail under `AssumeRoleWithWebIdentity`.
+
 In production these roles would come from an account provisioning mechanism, not
 from this repository.
 

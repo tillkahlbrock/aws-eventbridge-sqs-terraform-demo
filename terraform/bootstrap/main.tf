@@ -117,7 +117,7 @@ resource "aws_iam_role" "pipeline" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
+            "token.actions.githubusercontent.com:sub" = var.github_subject_patterns
           }
         }
       }
@@ -182,7 +182,7 @@ resource "aws_iam_role" "platform_deploy" {
         Sid    = "AllowPipelineRoleToDeploy"
         Effect = "Allow"
         Principal = {
-          AWS = aws_iam_role.pipeline.arn
+          AWS = concat([aws_iam_role.pipeline.arn], var.additional_trusted_principal_arns)
         }
         Action = "sts:AssumeRole"
       }
@@ -210,7 +210,7 @@ resource "aws_iam_role" "receiver_deploy" {
         Sid    = "AllowPipelineRoleToDeploy"
         Effect = "Allow"
         Principal = {
-          AWS = aws_iam_role.pipeline.arn
+          AWS = concat([aws_iam_role.pipeline.arn], var.additional_trusted_principal_arns)
         }
         Action = "sts:AssumeRole"
       }
