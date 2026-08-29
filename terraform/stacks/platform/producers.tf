@@ -1,7 +1,7 @@
 locals {
   producers = {
     "order-service" = {
-      account_id = "111111111111"
+      account_id = "841162690095"
     }
   }
 }
