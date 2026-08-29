@@ -4,16 +4,14 @@ variable "region" {
   default     = "eu-central-1"
 }
 
-variable "platform_profile" {
-  description = "AWS profile for the platform account. Leave it null to use the ambient credentials."
+variable "deploy_role_arn" {
+  description = "Role in the receiver workload account that the pipeline assumes to apply this stack."
   type        = string
-  default     = null
 }
 
-variable "receiver_profile" {
-  description = "AWS profile for the receiver workload account. Leave it null to use the ambient credentials."
+variable "platform_deploy_role_arn" {
+  description = "Administrative role in the platform account that the pipeline assumes to create the EventBridge rule and its execution role."
   type        = string
-  default     = null
 }
 
 variable "event_bus_name" {

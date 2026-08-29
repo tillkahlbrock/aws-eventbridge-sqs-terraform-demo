@@ -25,9 +25,9 @@ This repository deviates from section 3 of that document. See
 2. The team opens a pull request.
 3. `scope-check` confirms that the pull request touches one product stack and no
    shared code.
-4. `terraform` plans the platform stack and validates the consumer stack.
+4. `terraform` plans every stack and posts the result.
 5. The Platform Team reviews and merges. `CODEOWNERS` requires that approval.
-6. The pipeline applies the platform stack on `main`.
+6. The pipeline applies the stacks on `main`.
 
 A product stack is a provider block, a module block and its outputs. A routine
 change edits the event pattern and nothing else. Review stays a reading task,
@@ -124,14 +124,18 @@ stack has not run yet.
 
 ## Pipeline
 
-Every stack runs with the credentials that the pipeline provides. There are no
-`assume_role` blocks and no deploy-role variables.
+The pipeline holds base credentials only. Each stack assumes its own role
+through the `assume_role` block in its `providers.tf`.
 
-The consumer stack is the exception. It spans the platform account and the
-receiver workload account, so it needs one profile per provider. One set of
-ambient credentials cannot reach both, so the pipeline only formats and
-validates that stack. Apply it by hand for now. See
-[`docs/concept.md`](docs/concept.md).
+| Stack                  | Assumes                                          | In account        |
+|------------------------|--------------------------------------------------|-------------------|
+| `platform`             | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
+| `fulfillment-service`  | `FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN`            | Receiver workload |
+| `fulfillment-service`  | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
+
+The platform account uses one administrative role. Every stack that touches that
+account assumes it. Splitting it into a scoped role per stack is a later
+improvement, recorded in [`docs/concept.md`](docs/concept.md).
 
 The platform job runs first, because the product stacks resolve the event bus
 that it publishes.
@@ -141,6 +145,8 @@ Configure these GitHub repository variables:
 ```
 AWS_REGION
 PIPELINE_ROLE_ARN
+PLATFORM_DEPLOY_ROLE_ARN
+FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
 ```
 
 Producer accounts are **not** configured here. They live in
@@ -158,8 +164,7 @@ terraform init
 terraform plan
 ```
 
-Terraform uses your ambient credentials. The consumer stack needs two profiles,
-set in `terraform.tfvars`.
+Your local credentials must be able to assume the role in `deploy_role_arn`.
 
 ## Event contract
 
@@ -356,10 +361,9 @@ them.
   directories with a declarative manifest per team, and expand it with
   `for_each`. Review then compares event patterns instead of HCL. The stacks are
   deliberately uniform so that this step stays mechanical.
-- Terraform runs with whatever credentials it is given. There is no deploy role
-  per stack, so any run has the full rights of the caller.
-- The pipeline cannot apply the consumer stack, because that stack needs two
-  accounts and the job has one set of credentials.
+- The platform account uses one administrative deploy role. A consumer stack can
+  therefore do anything in the platform account at apply time. See
+  [`docs/concept.md`](docs/concept.md) for the intended next step.
 - The execution role trust policy has no `aws:SourceArn` or `aws:SourceAccount`
   condition. It follows the AWS documentation example. Add a condition after you
   verify it against the EventBridge behaviour in your accounts.

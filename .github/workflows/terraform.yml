@@ -1,8 +1,8 @@
 # One repository, one pipeline, one state per stack.
 #
-# Every stack runs with the credentials that configure-aws-credentials provides.
-# The consumer stack spans two accounts and needs a profile per provider, so the
-# pipeline cannot apply it yet. See docs/concept.md.
+# The pipeline holds base credentials only. Each stack assumes its own role
+# through the assume_role block in its providers.tf. The platform account uses
+# one administrative role. A scoped role per stack is a later improvement.
 #
 # Order: the platform stack publishes the event bus and the permissions
 # boundary. The product stacks resolve both by name, so they run after it.
@@ -53,6 +53,8 @@ jobs:
       - name: Plan
         working-directory: terraform/stacks/platform
         run: terraform plan -out=tfplan
+        env:
+          TF_VAR_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
 
       - name: Apply
         if: github.ref == 'refs/heads/main'
@@ -61,12 +63,16 @@ jobs:
 
   product-stacks:
     name: ${{ matrix.stack }}
+    needs: platform
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || '' }}
     strategy:
+      # One failing product stack must not block the others.
       fail-fast: false
       matrix:
         include:
           - stack: consumers/fulfillment-service
+            deploy_role_var: FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
     steps:
       - uses: actions/checkout@v4
 
@@ -74,10 +80,27 @@ jobs:
         with:
           terraform_version: 1.14.8
 
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PIPELINE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Init
         working-directory: terraform/stacks/${{ matrix.stack }}
-        run: terraform init -backend=false
+        run: terraform init
 
       - name: Validate
         working-directory: terraform/stacks/${{ matrix.stack }}
         run: terraform validate
+
+      - name: Plan
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_deploy_role_arn: ${{ vars[matrix.deploy_role_var] }}
+          TF_VAR_platform_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform apply -auto-approve tfplan
