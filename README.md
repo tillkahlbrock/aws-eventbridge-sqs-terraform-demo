@@ -58,27 +58,27 @@ terraform/
 │   ├── event-platform/                 shared event bus and its resource policy
 │   ├── event-producer/                 permission to publish to the shared bus
 │   └── event-consumer/                 subscription, rule, target, queues
-└── examples/                           deployable roots, one per service
+└── deployments/                        deployable roots, one per service
     ├── shared-infra/                    Platform Team
     ├── order-service/                   Product Team A, the producer
-    └── persistence-service/             Product Team B, the consumer
+    └── fulfillment-service/             Product Team B, the consumer
 ```
 
-Each example root is a separate state boundary. The roots do not read each
+Each deployment root is a separate state boundary. The roots do not read each
 other's remote state. Shared identifiers, such as the event bus ARN, are passed
 as variables. This keeps the hand-off between the teams explicit.
 
 ## Root ownership
 
-| Root                          | Owner          | Module used      | Deploys into                           |
-|-------------------------------|----------------|------------------|----------------------------------------|
-| `examples/shared-infra`       | Platform Team  | `event-platform` | Platform account                       |
-| `examples/order-service`      | Product Team A | `event-producer` | Sender workload account                |
-| `examples/persistence-service`| Product Team B | `event-consumer` | Platform and receiver workload account |
+| Root                             | Owner          | Module used      | Deploys into                           |
+|----------------------------------|----------------|------------------|----------------------------------------|
+| `deployments/shared-infra`       | Platform Team  | `event-platform` | Platform account                       |
+| `deployments/order-service`      | Product Team A | `event-producer` | Sender workload account                |
+| `deployments/fulfillment-service`| Product Team B | `event-consumer` | Platform and receiver workload account |
 
 The roots are named after the service that owns them, not after the AWS account
 they target. A root is owned by one team, but it is not limited to one account:
-`persistence-service` deploys into two. See
+`fulfillment-service` deploys into two. See
 [Deviations from the specification](#deviations-from-the-specification).
 
 ## Prerequisites
@@ -90,7 +90,7 @@ they target. A root is owned by one team, but it is not limited to one account:
 - All three accounts use the same region. EventBridge sends events to
   cross-account targets in the same region only.
 
-The example roots do not create deployment roles. Supply credentials through
+The deployment roots do not create deployment roles. Supply credentials through
 AWS profiles, environment variables or role assumption.
 
 ## Deployment
@@ -101,7 +101,7 @@ the values. Deploy the roots in this order.
 ### 1. shared-infra, platform account
 
 ```bash
-cd terraform/examples/shared-infra
+cd terraform/deployments/shared-infra
 terraform init
 terraform apply
 ```
@@ -112,17 +112,17 @@ the product teams.
 ### 2. order-service, sender workload account
 
 ```bash
-cd terraform/examples/order-service
+cd terraform/deployments/order-service
 terraform init
 terraform apply
 ```
 
 Set `event_bus_arn` to the value from step 1.
 
-### 3. persistence-service, platform and receiver workload account
+### 3. fulfillment-service, platform and receiver workload account
 
 ```bash
-cd terraform/examples/persistence-service
+cd terraform/deployments/fulfillment-service
 terraform init
 terraform apply
 ```
@@ -211,15 +211,21 @@ See [Sending events to an AWS service in another account](https://docs.aws.amazo
 terraform fmt -check -recursive terraform/
 ```
 
-Run `terraform validate` in each example root after `terraform init`.
+Run `terraform validate` in each deployment root after `terraform init`.
 
 ## Deviations from the specification
 
-The specification names the deployable roots after the AWS accounts:
-`platform-account`, `sender-workload-account` and `receiver-workload-account`.
-This repository names them after the service that owns them.
+Section 3 of the specification defines `terraform/examples/` with three roots
+named after the AWS accounts. This repository uses `terraform/deployments/`
+with three roots named after the services that own them.
 
-Reasons:
+| Specification                        | This repository                    |
+|--------------------------------------|------------------------------------|
+| `examples/platform-account`          | `deployments/shared-infra`         |
+| `examples/sender-workload-account`   | `deployments/order-service`        |
+| `examples/receiver-workload-account` | `deployments/fulfillment-service`  |
+
+### Why the roots carry service names
 
 - An AWS account is a deployment target, not an identity. Account names bind a
   root to exactly one account. One account can hold many services.
@@ -228,12 +234,25 @@ Reasons:
   workload account. An account name cannot describe it correctly.
 - Ownership follows the team and the service. Account names hide the owner.
 
-The subscription resources also carry the name of the consuming service, for
-example `persistence-service-order-created`. Several services can subscribe to
-the same event without a name collision.
-
 The README states the target account for each root, so the account boundary
 stays visible.
+
+### Why the directory is deployments, not examples
+
+By Terraform convention, `examples/` holds sample usage of the modules beside
+them. These three roots are not samples. They are the deployable units that the
+three teams own and apply. `deployments/` states that.
+
+### Why the consumer is a domain service
+
+The consumer is `fulfillment-service`, a domain service that reacts to
+`OrderCreated`. A technical name such as `persistence-service` implies that the
+service stores all events. That contradicts the demo, which shows content-based
+routing on one `detail-type`.
+
+The subscription resources also carry the name of the consuming service, for
+example `fulfillment-service-order-created`. Several services can subscribe to
+the same event without a name collision.
 
 ## Known demo limitations
 

@@ -13,9 +13,9 @@ module "order_created_subscription" {
 
   event_bus_name    = var.event_bus_name
   event_bus_arn     = var.event_bus_arn
-  subscription_name = "persistence-service-order-created"
-  queue_name        = "persistence-service-order-created"
-  dlq_name          = "persistence-service-order-created-dlq"
+  subscription_name = "fulfillment-service-order-created"
+  queue_name        = "fulfillment-service-order-created"
+  dlq_name          = "fulfillment-service-order-created-dlq"
 
   event_pattern = {
     source        = ["com.example.orders"]
