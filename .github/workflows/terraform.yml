@@ -1,0 +1,111 @@
+name: terraform
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive terraform/
+
+      - name: Validate every root
+        run: |
+          set -euo pipefail
+          for root in terraform/bootstrap \
+                      terraform/stacks/platform \
+                      terraform/stacks/consumers/fulfillment-service; do
+            echo "::group::$root"
+            terraform -chdir="$root" init -backend=false
+            terraform -chdir="$root" validate
+            echo "::endgroup::"
+          done
+
+  platform:
+    name: platform
+    needs: validate
+    if: vars.PIPELINE_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PIPELINE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Init
+        working-directory: terraform/stacks/platform
+        run: terraform init
+
+      - name: Plan
+        working-directory: terraform/stacks/platform
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform/stacks/platform
+        run: terraform apply -auto-approve tfplan
+
+  consumers:
+    name: ${{ matrix.stack }}
+    needs: platform
+    if: vars.PIPELINE_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: consumers/fulfillment-service
+            deploy_role_var: FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.8
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PIPELINE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Init
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform init
+
+      - name: Plan
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_deploy_role_arn: ${{ vars[matrix.deploy_role_var] }}
+          TF_VAR_platform_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform/stacks/${{ matrix.stack }}
+        run: terraform apply -auto-approve tfplan
