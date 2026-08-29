@@ -6,7 +6,7 @@ locals {
   }, var.tags)
 
   # Accept both a Terraform object and a ready JSON string.
-  event_pattern_json = can(jsondecode(var.event_pattern)) ? var.event_pattern : jsonencode(var.event_pattern)
+  event_pattern_json = can(tostring(var.event_pattern)) ? tostring(var.event_pattern) : jsonencode(var.event_pattern)
 
   execution_role_name = coalesce(var.eventbridge_execution_role_name, "${var.subscription_name}-eventbridge-target")
 }
