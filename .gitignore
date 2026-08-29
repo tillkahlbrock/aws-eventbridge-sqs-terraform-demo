@@ -1,0 +1,20 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+.terraform.lock.hcl
+.terraformrc
+terraform.rc
+
+# Local variable files. Only the *.example files are tracked.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Local tooling artifacts
+.memsearch/
+:memory:.ses
+.DS_Store
