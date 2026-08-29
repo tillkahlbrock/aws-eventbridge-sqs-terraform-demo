@@ -77,6 +77,7 @@ uses two provider configurations for this reason.
     ├── terraform.yml                   plan on pull request, apply on main
     └── scope-check.yml                 one product stack per pull request
 terraform/
+├── bootstrap/                          run once, by hand, local state
 ├── modules/                            Platform Team only
 │   ├── event-platform/                 shared event bus and its resource policy
 │   └── event-consumer/                 subscription, rule, target, queues
@@ -115,12 +116,39 @@ stack has not run yet.
 - Terraform 1.6 or later.
 - AWS provider 6.x. Terraform downloads it during `terraform init`.
 - Three AWS accounts, or three sets of credentials that map to them.
-- An S3 bucket for the Terraform state, named in each stack's `providers.tf`.
-  State locking uses `use_lockfile`, so no DynamoDB table is needed.
-- One pipeline role with OIDC trust to this repository. Each stack role trusts
-  that pipeline role.
+- Administrative credentials for the platform and receiver accounts, once, to
+  run [Bootstrap](#bootstrap).
 - All three accounts use the same region. EventBridge sends events to
   cross-account targets in the same region only.
+
+## Bootstrap
+
+`terraform/bootstrap` creates what the pipeline needs before it can run:
+
+- the S3 bucket for the Terraform state;
+- the GitHub OIDC provider and the pipeline role in the platform account;
+- one administrative deploy role in the platform account and one in the receiver
+  workload account, both trusted by the pipeline role.
+
+Run it once, by hand, with administrative credentials for both accounts. It keeps
+local state, because it creates the bucket that every other stack writes to.
+
+```bash
+cd terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars   # then edit
+terraform init
+terraform apply
+```
+
+Copy the outputs into the repository variables listed under
+[Pipeline](#pipeline). If `state_bucket_name` is not the default, update the
+`backend` block in each stack to match.
+
+Set `create_github_oidc_provider = false` when the platform account already has
+a GitHub OIDC provider. An account can only have one.
+
+In production these roles would come from an account provisioning mechanism, not
+from this repository.
 
 ## Pipeline
 

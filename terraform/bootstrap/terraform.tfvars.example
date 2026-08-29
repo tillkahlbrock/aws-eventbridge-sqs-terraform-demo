@@ -1,0 +1,4 @@
+region            = "eu-central-1"
+platform_profile  = "platform-account"
+receiver_profile  = "receiver-workload-account"
+github_repository = "tillkahlbrock/aws-eventbridge-sqs-terraform-demo"
