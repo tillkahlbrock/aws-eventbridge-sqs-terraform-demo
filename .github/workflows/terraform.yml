@@ -1,8 +1,8 @@
 # One repository, one pipeline, one state per stack.
 #
 # The pipeline holds base credentials only. Each stack assumes its own role
-# through the assume_role block in its providers.tf. The consumer stack reaches
-# the platform account through the scoped subscription deployer role.
+# through the assume_role block in its providers.tf. The platform account uses
+# one administrative role. A scoped role per stack is a later improvement.
 #
 # Order: the platform stack publishes the event bus and the permissions
 # boundary. The product stacks resolve both by name, so they run after it.
@@ -60,7 +60,6 @@ jobs:
         env:
           TF_VAR_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
           TF_VAR_producer_account_ids: '["${{ vars.SENDER_ACCOUNT_ID }}"]'
-          TF_VAR_pipeline_role_arns: '["${{ vars.PIPELINE_ROLE_ARN }}"]'
 
       - name: Apply
         if: github.ref == 'refs/heads/main'
@@ -110,8 +109,7 @@ jobs:
         run: terraform plan -out=tfplan
         env:
           TF_VAR_deploy_role_arn: ${{ vars[matrix.deploy_role_var] }}
-          TF_VAR_platform_read_role_arn: ${{ vars.PLATFORM_READ_ROLE_ARN }}
-          TF_VAR_subscription_deploy_role_arn: ${{ vars.SUBSCRIPTION_DEPLOY_ROLE_ARN }}
+          TF_VAR_platform_deploy_role_arn: ${{ vars.PLATFORM_DEPLOY_ROLE_ARN }}
 
       - name: Apply
         if: github.ref == 'refs/heads/main'

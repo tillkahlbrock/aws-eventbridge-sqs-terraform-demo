@@ -2,4 +2,3 @@ region               = "eu-central-1"
 deploy_role_arn      = "arn:aws:iam::222222222222:role/terraform-platform-deploy"
 event_bus_name       = "async-demo"
 producer_account_ids = ["111111111111"]
-pipeline_role_arns   = ["arn:aws:iam::222222222222:role/github-actions-eventing-repo"]

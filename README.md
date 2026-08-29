@@ -42,7 +42,6 @@ not an audit of arbitrary Terraform.
 │                                                      │
 │   Shared EventBridge Event Bus                       │
 │   + Event Bus Resource Policy                        │
-│   + Subscription Deploy Role                         │
 │   + Consumer EventBridge Rule + Execution Role       │
 └───────────────▲───────────────────────┬──────────────┘
                 │ PutEvents             │ rule target
@@ -65,7 +64,7 @@ uses two provider configurations for this reason.
 
 | Account           | Owner          | Purpose                         | Resources in this demo                                              |
 |-------------------|----------------|---------------------------------|---------------------------------------------------------------------|
-| Platform          | Platform Team  | Shared eventing foundation      | Event bus, resource policy, deploy role, rule, target               |
+| Platform          | Platform Team  | Shared eventing foundation      | Event bus, resource policy, consumer EventBridge rule and target    |
 | Sender workload   | Product Team A | Publishes domain events         | IAM policy and optional demo role for `events:PutEvents`            |
 | Receiver workload | Product Team B | Receives selected domain events | SQS queue, dead-letter queue, redrive configuration, queue policy   |
 
@@ -81,8 +80,7 @@ terraform/
 ├── modules/                            Platform Team only
 │   ├── event-platform/                 shared event bus and its resource policy
 │   ├── event-producer/                 permission to publish to the shared bus
-│   ├── event-consumer/                 subscription, rule, target, queues
-│   └── subscription-deploy-role/       scoped deploy access to the platform account
+│   └── event-consumer/                 subscription, rule, target, queues
 └── stacks/
     ├── platform/                       Platform Team
     ├── producers/
@@ -98,7 +96,7 @@ not. A product stack apply cannot damage the shared event bus.
 
 | Stack                                       | Owner          | Modules used                                 | Deploys into                           |
 |---------------------------------------------|----------------|----------------------------------------------|----------------------------------------|
-| `stacks/platform`                           | Platform Team  | `event-platform`, `subscription-deploy-role` | Platform account                       |
+| `stacks/platform`                           | Platform Team  | `event-platform`                             | Platform account                       |
 | `stacks/producers/order-service`            | Product Team A | `event-producer`                             | Sender workload account                |
 | `stacks/consumers/fulfillment-service`      | Product Team B | `event-consumer`                             | Platform and receiver workload account |
 
@@ -136,9 +134,13 @@ through the `assume_role` block in its `providers.tf`.
 |------------------------|--------------------------------------------------|-------------------|
 | `platform`             | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
 | `order-service`        | `ORDER_SERVICE_DEPLOY_ROLE_ARN`                  | Sender workload   |
-| `order-service`        | `PLATFORM_READ_ROLE_ARN`, read only              | Platform          |
+| `order-service`        | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
 | `fulfillment-service`  | `FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN`            | Receiver workload |
-| `fulfillment-service`  | `SUBSCRIPTION_DEPLOY_ROLE_ARN`, scoped           | Platform          |
+| `fulfillment-service`  | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
+
+The platform account uses one administrative role. Every stack that touches that
+account assumes it. Splitting it into a scoped role per stack is a later
+improvement, recorded in [`docs/concept.md`](docs/concept.md).
 
 The platform job runs first, because the product stacks resolve the event bus
 that it publishes.
@@ -150,15 +152,10 @@ AWS_REGION
 TF_STATE_BUCKET
 PIPELINE_ROLE_ARN
 PLATFORM_DEPLOY_ROLE_ARN
-PLATFORM_READ_ROLE_ARN
-SUBSCRIPTION_DEPLOY_ROLE_ARN
 SENDER_ACCOUNT_ID
 ORDER_SERVICE_DEPLOY_ROLE_ARN
 FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN
 ```
-
-`SUBSCRIPTION_DEPLOY_ROLE_ARN` comes from the platform stack output. Set it
-after the first platform apply.
 
 ## Running a stack locally
 
@@ -251,34 +248,23 @@ See [Sending events to an AWS service in another account](https://docs.aws.amazo
 ### Deploy time
 
 The pipeline holds credentials for all three accounts. The account boundary is
-therefore no longer the control it was in a federated setup, so each stack
-assumes its own least-privilege role.
+therefore no longer the control it was in a federated setup.
 
-The consumer stack reaches the platform account through the subscription deploy
-role. That role can:
+The demo uses one administrative role in the platform account. Every stack that
+touches that account assumes it, including the consumer stack that creates the
+EventBridge rule and its execution role.
 
-- read the shared event bus;
-- manage rules and targets on that bus only, through the rule ARN pattern
-  `rule/<bus-name>/*`;
-- manage the EventBridge execution role, matched by the name pattern
-  `*-eventbridge-target`;
-- pass that role to `events.amazonaws.com` only.
-
-An explicit `Deny` stops it from creating, changing or deleting the event bus,
-and from calling `events:PutPermission` or `events:RemovePermission`.
-
-**This role does not defend against product teams.** The Platform Team reviews
-and merges every change, so a control against approved code would be circular.
-It defends against two things that review does not cover.
+This is deliberate for a first version. Least privilege at deploy time is a
+separate improvement, recorded in [`docs/concept.md`](docs/concept.md). Two
+things that code review does not cover motivate it.
 
 1. **A stack overwriting the bus resource policy.** `aws_cloudwatch_event_bus_policy`
    is last-write-wins, and the policy lives in the platform stack state. If
    another stack replaces it, Terraform gives no warning and every other
-   producer loses access. The `Deny` above prevents that class permanently.
+   producer loses access.
 2. **A compromised pipeline.** Review gates the code in this repository. It does
    not gate the actions, the providers or the Terraform binary that the runner
-   executes. A CI role that can do anything in the platform account is a
-   standing target.
+   executes.
 
 ## Verification
 
@@ -344,11 +330,8 @@ Three controls replace it.
 1. `CODEOWNERS` requires Platform Team approval on every pull request.
 2. `scope-check` blocks a pull request that mixes a product stack with shared
    code.
-3. The subscription deploy role limits what a consumer stack can do in the
-   platform account.
-
-Controls 1 and 2 are process. Control 3 is the only one that holds when the
-runner itself is the problem.
+Both are process controls. Neither holds when the runner itself is the problem.
+A scoped deploy role would, and that is the recorded next step.
 
 ## Known demo limitations
 
@@ -364,12 +347,9 @@ them.
   directories with a declarative manifest per team, and expand it with
   `for_each`. Review then compares event patterns instead of HCL. The stacks are
   deliberately uniform so that this step stays mechanical.
-- The subscription deploy role matches the execution role by the name pattern
-  `*-eventbridge-target`. A consumer stack that overrides
-  `eventbridge_execution_role_name` with another suffix fails at apply with an
-  access error. An IAM path would be firmer, but it would push deployment
-  details into the reusable `event-consumer` module, which must not know how it
-  is deployed.
+- The platform account uses one administrative deploy role. A consumer stack can
+  therefore do anything in the platform account at apply time. See
+  [`docs/concept.md`](docs/concept.md) for the intended next step.
 - The execution role trust policy has no `aws:SourceArn` or `aws:SourceAccount`
   condition. It follows the AWS documentation example. Add a condition after you
   verify it against the EventBridge behaviour in your accounts.

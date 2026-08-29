@@ -1,9 +1,8 @@
 # Stack: fulfillment-service, the event consumer. Owner: Product Team B.
 # Deploys into: platform account and receiver workload account.
 #
-# The platform provider assumes the subscription deploy role. That role can
-# manage rules on the shared bus and the EventBridge execution role only.
-# An explicit deny stops it from changing the event bus itself.
+# The platform provider assumes the administrative deploy role of the Platform
+# Team. A scoped role per stack is a later improvement. See docs/concept.md.
 
 terraform {
   required_version = ">= 1.6"
@@ -23,7 +22,7 @@ provider "aws" {
   region = var.region
 
   assume_role {
-    role_arn     = var.subscription_deploy_role_arn
+    role_arn     = var.platform_deploy_role_arn
     session_name = "terraform-fulfillment-service-subscription"
   }
 }

@@ -5,7 +5,7 @@ variable "region" {
 }
 
 variable "deploy_role_arn" {
-  description = "Role in the platform account that the pipeline assumes to apply this stack."
+  description = "Role in the platform account that the pipeline assumes. The demo uses one administrative role for every platform-account action."
   type        = string
 }
 
@@ -23,9 +23,4 @@ variable "producer_account_ids" {
     condition     = length(var.producer_account_ids) > 0
     error_message = "At least one producer account is required."
   }
-}
-
-variable "pipeline_role_arns" {
-  description = "Pipeline roles that may assume the subscription deploy role in the platform account."
-  type        = list(string)
 }

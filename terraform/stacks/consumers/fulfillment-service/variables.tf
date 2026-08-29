@@ -9,8 +9,8 @@ variable "deploy_role_arn" {
   type        = string
 }
 
-variable "subscription_deploy_role_arn" {
-  description = "Scoped role in the platform account. The platform stack creates it."
+variable "platform_deploy_role_arn" {
+  description = "Administrative role in the platform account that the pipeline assumes to create the EventBridge rule and its execution role."
   type        = string
 }
 

@@ -1,8 +1,8 @@
 # Stack: order-service, the event producer. Owner: Product Team A.
 # Deploys into: sender workload account.
 #
-# The platform provider is read-only. The stack uses it to resolve the shared
-# event bus by name. It creates nothing in the platform account.
+# The stack uses the platform provider to resolve the shared event bus by name.
+# It creates nothing in the platform account.
 
 terraform {
   required_version = ">= 1.6"
@@ -31,7 +31,7 @@ provider "aws" {
   region = var.region
 
   assume_role {
-    role_arn     = var.platform_read_role_arn
+    role_arn     = var.platform_deploy_role_arn
     session_name = "terraform-order-service-lookup"
   }
 }

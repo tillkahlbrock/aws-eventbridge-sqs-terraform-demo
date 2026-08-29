@@ -9,8 +9,8 @@ variable "deploy_role_arn" {
   type        = string
 }
 
-variable "platform_read_role_arn" {
-  description = "Read-only role in the platform account. The stack uses it to resolve the shared event bus."
+variable "platform_deploy_role_arn" {
+  description = "Role in the platform account that the pipeline assumes to resolve the shared event bus."
   type        = string
 }
 
