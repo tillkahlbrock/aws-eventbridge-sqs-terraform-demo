@@ -1,4 +1,4 @@
-# Product Team A deploys this root after the platform root exists.
+# Product Team A deploys this root after shared-infra exists.
 # The shared event bus ARN is passed as a variable. There is no remote-state reference.
 
 module "event_producer" {

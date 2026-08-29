@@ -1,4 +1,5 @@
-# Owner: Platform Team. Target account: platform account.
+# Service: shared-infra. Owner: Platform Team.
+# Deploys into: platform account.
 
 terraform {
   required_version = ">= 1.6"

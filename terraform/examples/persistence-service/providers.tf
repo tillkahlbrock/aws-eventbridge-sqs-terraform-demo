@@ -1,4 +1,5 @@
-# Owner: Product Team B, the receiver. Target accounts: platform account and receiver workload account.
+# Service: persistence-service, the event consumer. Owner: Product Team B.
+# Deploys into: platform account and receiver workload account.
 # This root needs two provider configurations. An EventBridge rule must be created
 # on the account that owns the event bus.
 

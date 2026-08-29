@@ -18,7 +18,7 @@ variable "event_bus_arn" {
 variable "policy_name" {
   description = "Name of the IAM policy that allows publishing to the shared event bus."
   type        = string
-  default     = "async-demo-put-events"
+  default     = "order-service-put-events"
 }
 
 variable "create_demo_role" {

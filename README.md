@@ -58,23 +58,28 @@ terraform/
 │   ├── event-platform/                 shared event bus and its resource policy
 │   ├── event-producer/                 permission to publish to the shared bus
 │   └── event-consumer/                 subscription, rule, target, queues
-└── examples/                           deployable roots, one per Terraform user
-    ├── platform-account/               Platform Team
-    ├── sender-workload-account/        Product Team A
-    └── receiver-workload-account/      Product Team B
+└── examples/                           deployable roots, one per service
+    ├── shared-infra/                    Platform Team
+    ├── order-service/                   Product Team A, the producer
+    └── persistence-service/             Product Team B, the consumer
 ```
 
 Each example root is a separate state boundary. The roots do not read each
 other's remote state. Shared identifiers, such as the event bus ARN, are passed
 as variables. This keeps the hand-off between the teams explicit.
 
-## Module ownership
+## Root ownership
 
-| Module           | Owner          | Deployed from                        | Deployed into                          |
-|------------------|----------------|--------------------------------------|----------------------------------------|
-| `event-platform` | Platform Team  | `examples/platform-account`          | Platform account                       |
-| `event-producer` | Product Team A | `examples/sender-workload-account`   | Sender workload account                |
-| `event-consumer` | Product Team B | `examples/receiver-workload-account` | Platform and receiver workload account |
+| Root                          | Owner          | Module used      | Deploys into                           |
+|-------------------------------|----------------|------------------|----------------------------------------|
+| `examples/shared-infra`       | Platform Team  | `event-platform` | Platform account                       |
+| `examples/order-service`      | Product Team A | `event-producer` | Sender workload account                |
+| `examples/persistence-service`| Product Team B | `event-consumer` | Platform and receiver workload account |
+
+The roots are named after the service that owns them, not after the AWS account
+they target. A root is owned by one team, but it is not limited to one account:
+`persistence-service` deploys into two. See
+[Deviations from the specification](#deviations-from-the-specification).
 
 ## Prerequisites
 
@@ -93,10 +98,10 @@ AWS profiles, environment variables or role assumption.
 Copy `terraform.tfvars.example` to `terraform.tfvars` in each root. Then edit
 the values. Deploy the roots in this order.
 
-### 1. Platform account
+### 1. shared-infra, platform account
 
 ```bash
-cd terraform/examples/platform-account
+cd terraform/examples/shared-infra
 terraform init
 terraform apply
 ```
@@ -104,20 +109,20 @@ terraform apply
 Record the `event_bus_name` and `event_bus_arn` outputs. Hand both values to
 the product teams.
 
-### 2. Sender workload account
+### 2. order-service, sender workload account
 
 ```bash
-cd terraform/examples/sender-workload-account
+cd terraform/examples/order-service
 terraform init
 terraform apply
 ```
 
 Set `event_bus_arn` to the value from step 1.
 
-### 3. Receiver workload account
+### 3. persistence-service, platform and receiver workload account
 
 ```bash
-cd terraform/examples/receiver-workload-account
+cd terraform/examples/persistence-service
 terraform init
 terraform apply
 ```
@@ -207,6 +212,28 @@ terraform fmt -check -recursive terraform/
 ```
 
 Run `terraform validate` in each example root after `terraform init`.
+
+## Deviations from the specification
+
+The specification names the deployable roots after the AWS accounts:
+`platform-account`, `sender-workload-account` and `receiver-workload-account`.
+This repository names them after the service that owns them.
+
+Reasons:
+
+- An AWS account is a deployment target, not an identity. Account names bind a
+  root to exactly one account. One account can hold many services.
+- The consumer root already deploys into two accounts. It creates the
+  EventBridge rule in the platform account and the queues in the receiver
+  workload account. An account name cannot describe it correctly.
+- Ownership follows the team and the service. Account names hide the owner.
+
+The subscription resources also carry the name of the consuming service, for
+example `persistence-service-order-created`. Several services can subscribe to
+the same event without a name collision.
+
+The README states the target account for each root, so the account boundary
+stays visible.
 
 ## Known demo limitations
 

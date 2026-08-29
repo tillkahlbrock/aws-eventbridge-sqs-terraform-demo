@@ -1,4 +1,5 @@
-# Owner: Product Team A, the sender. Target account: sender workload account.
+# Service: order-service, the event producer. Owner: Product Team A.
+# Deploys into: sender workload account.
 
 terraform {
   required_version = ">= 1.6"
