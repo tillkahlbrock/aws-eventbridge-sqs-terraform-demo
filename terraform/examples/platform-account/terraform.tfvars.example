@@ -1,0 +1,4 @@
+region            = "eu-central-1"
+aws_profile       = "platform-account"
+event_bus_name    = "async-demo"
+sender_account_id = "111111111111"

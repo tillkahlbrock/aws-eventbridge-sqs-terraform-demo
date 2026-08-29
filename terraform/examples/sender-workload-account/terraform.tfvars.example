@@ -1,0 +1,3 @@
+region        = "eu-central-1"
+aws_profile   = "sender-workload-account"
+event_bus_arn = "arn:aws:events:eu-central-1:222222222222:event-bus/async-demo"
