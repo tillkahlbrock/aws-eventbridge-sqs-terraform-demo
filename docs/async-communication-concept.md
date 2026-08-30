@@ -1,11 +1,8 @@
 # Plattform für asynchrone Kommunikation
 
-<!--
-Ergebnis zur Aufgabe in docs/PlatformAufgabeE.pdf. Grenze: 6 Seiten.
-Das Seitenbudget in jeder Überschrift dient der Priorisierung.
--->
+<!-- Ergebnis zur Aufgabe in docs/PlatformAufgabeE.pdf. Grenze: 6 Seiten. -->
 
-## 1. Kontext und Ziel — 0,5 Seiten
+## 1. Kontext und Ziel
 
 ### 1.1 Ausgangslage
 
@@ -44,7 +41,7 @@ Wir sind fertig, wenn:
   Anforderung etwas anderes verlangt.
 - **Event Sourcing.** Der Bus ist Transport. Er ist kein System of Record.
 
-## 2. Architektur und Design — 2 Seiten
+## 2. Architektur und Design
 
 ### 2.1 Zielarchitektur
 
@@ -185,7 +182,7 @@ Account des Consumers. Ein lauter oder defekter Consumer kann deshalb kein
 anderes Team beeinträchtigen. Der gemeinsame Bus ist die einzige geteilte
 Komponente, und nur das Plattformteam schreibt darauf.
 
-## 3. Terraform-Prototyp — 1 Seite
+## 3. Terraform-Prototyp
 
 Der Prototyp ist ein lauffähiges Repository, keine Skizze. Er ist deployt, und
 ein Event hat den gesamten Weg von Anfang bis Ende zurückgelegt.
@@ -268,7 +265,7 @@ Bewusst ausgelassen:
   administrative Rolle;
 - Alarme, Dashboards und Tracing.
 
-## 4. Developer Experience und Golden Path — 1,5 Seiten
+## 4. Developer Experience und Golden Path
 
 Der Golden Path hat genau zwei Berührungspunkte mit der Plattform: ein Eintrag
 in `producers.tf`, wenn ein Team veröffentlichen will, oder ein Stack-Verzeichnis,
@@ -377,7 +374,7 @@ Der Engpass ist das Review. Solange das Plattformteam jeden Pull Request von
 Hand prüft, steht es im kritischen Pfad jeder Produktänderung. Genau das soll
 eine Plattform beseitigen. Der nächste Schritt steht in Abschnitt 6.
 
-## 5. Betrieb und Stabilität — 0,75 Seiten
+## 5. Betrieb und Stabilität
 
 ### 5.1 Monitoring und Alarmierung
 
@@ -429,7 +426,7 @@ gleichzeitig fehl.
 Nach der Behebung schiebt ein Redrive die Messages aus der DLQ zurück in die
 Queue. Auch das trägt die Idempotenz aus 2.5.
 
-## 6. Vision und Weiterentwicklung — 0,25 Seiten
+## 6. Vision und Weiterentwicklung
 
 Vier Schritte, in dieser Reihenfolge. Jeder schließt eine benannte Lücke, keiner
 fügt eine Fähigkeit hinzu, die noch niemand verlangt hat.
