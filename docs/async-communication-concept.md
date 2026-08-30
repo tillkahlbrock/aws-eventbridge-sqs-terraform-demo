@@ -48,9 +48,16 @@ Wir sind fertig, wenn:
 
 ### 2.1 Zielarchitektur
 
-Diagramm: [`async-communication-architecture.drawio`](async-communication-architecture.drawio)
-— in draw.io öffnen. Für die Abgabe wird daraus als SVG oder PNG exportiert und
-an dieser Stelle eingebettet.
+![Zielarchitektur der Plattform für asynchrone Kommunikation](async-communication-architecture.png)
+
+Quelle: [`async-communication-architecture.drawio`](async-communication-architecture.drawio).
+Nach einer Änderung das PNG neu erzeugen:
+
+```bash
+/Applications/draw.io.app/Contents/MacOS/draw.io -x -f png -s 2 -b 12 \
+  -o docs/async-communication-architecture.png \
+  docs/async-communication-architecture.drawio
+```
 
 Ein Producer im Account des Order Service veröffentlicht über `PutEvents` auf
 den gemeinsamen Bus. Eine Rule je Subscription filtert auf den Inhalt und stellt
