@@ -270,13 +270,112 @@ Bewusst ausgelassen:
 
 ## 4. Developer Experience und Golden Path — 1,5 Seiten
 
+Der Golden Path hat genau zwei Berührungspunkte mit der Plattform: ein Eintrag
+in `producers.tf`, wenn ein Team veröffentlichen will, oder ein Stack-Verzeichnis,
+wenn es abonnieren will. Beides ist ein Pull Request.
+
 ### 4.1 Ein Event veröffentlichen
+
+Einmalig: das Team trägt seinen Account in `producers.tf` ein. Eine Zeile, ein
+Pull Request, Freigabe durch das Plattformteam.
+
+```hcl
+locals {
+  producers = {
+    "order-service" = { account_id = "841162690095" }
+  }
+}
+```
+
+Danach ohne weitere Plattform-Beteiligung, für jedes weitere Event:
+
+```ts
+import { publish } from "@platform/events";
+
+await publish({
+  domain: "orders",
+  service: "order-service",
+  type: "OrderCreated",
+  payload: { orderId },
+});
+```
+
+Das Team gibt seiner eigenen Runtime-Rolle `events:PutEvents` auf die Bus-ARN.
+Die Bibliothek setzt Envelope, `Source` und `DetailType` und wirft, wenn
+`FailedEntryCount` gesetzt ist.
+
+Ein neuer Event-Typ braucht keinen Pull Request in der Plattform. Wer niemanden
+hat, der zuhört, stört auch niemanden.
 
 ### 4.2 Ein Event abonnieren
 
+Das Team legt ein Verzeichnis unter `stacks/consumers/` an. Der ganze Inhalt ist
+ein Modulblock:
+
+```hcl
+module "order_created_subscription" {
+  source = "../../../modules/event-consumer"
+
+  providers = {
+    aws.platform = aws.platform
+    aws.consumer = aws.fulfillment
+  }
+
+  event_bus_name    = data.aws_cloudwatch_event_bus.shared.name
+  event_bus_arn     = data.aws_cloudwatch_event_bus.shared.arn
+  subscription_name = "fulfillment-service-order-created"
+  queue_name        = "fulfillment-service-order-created"
+  dlq_name          = "fulfillment-service-order-created-dlq"
+
+  event_pattern = {
+    source        = ["com.example.orders"]
+    "detail-type" = ["OrderCreated"]
+  }
+}
+```
+
+Queue, Dead-Letter-Queue, Redrive Policy, Rule, Target, Execution Role und beide
+Resource Policies entstehen daraus. Nach dem Merge wendet die Pipeline den Stack
+an.
+
+Der Consumer liest die Queue und bekommt den Envelope getypt zurück:
+
+```ts
+const envelope = parse<{ orderId: string }>(message.Body);
+```
+
+Eine spätere Änderung am Abonnement ist ein Ein-Zeilen-Diff am `event_pattern`.
+Genau das ist die Absicht: ein Reviewer liest ein Pattern, nicht Terraform.
+
 ### 4.3 Abstraktionen: SDK, Terraform-Modul, Templates
 
+Drei, mehr nicht:
+
+| Abstraktion | Was sie abnimmt |
+|---|---|
+| `@platform/events` | Envelope, Ableitung der Routing-Felder, Fehlerprüfung bei `PutEvents` |
+| `event-consumer` (Terraform) | die gesamte Subscription mit Queue, DLQ, Rollen und Policies |
+| Die Beispiele in `apps/` | Vorlage zum Kopieren für Producer und Consumer |
+
+Bewusst keine Abstraktion sind ein Portal, ein CLI und Codegenerierung. Jede
+davon ist eine eigene Software mit eigenem Betrieb. Ein Team von fünf Personen
+betreibt bereits eine Plattform.
+
 ### 4.4 Onboarding und Adoption
+
+Neue Events zuerst. Bestehende Queues, Cronjobs und Worker werden nicht
+migriert, solange sie halten. Eine Migration ohne neuen Nutzen kostet Vertrauen.
+
+Das Plattformteam begleitet das erste Abonnement je Team gemeinsam, danach nicht
+mehr. Wer den zweiten Pull Request allein schafft, hat den Golden Path
+verstanden.
+
+Als Maß taugt die Zahl der Teams mit mindestens einem Abonnement, nicht die Zahl
+der Events pro Sekunde. Das zweite misst Last, das erste Adoption.
+
+Der Engpass ist das Review. Solange das Plattformteam jeden Pull Request von
+Hand prüft, steht es im kritischen Pfad jeder Produktänderung. Genau das soll
+eine Plattform beseitigen. Der nächste Schritt steht in Abschnitt 6.
 
 ## 5. Betrieb und Stabilität — 0,75 Seiten
 
