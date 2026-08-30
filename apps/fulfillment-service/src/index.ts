@@ -3,28 +3,17 @@ import {
   ReceiveMessageCommand,
   SQSClient,
 } from "@aws-sdk/client-sqs";
+import { parse } from "@platform/events";
 
-interface EventBridgeEnvelope {
-  id: string;
-  source: string;
-  "detail-type": string;
-  detail: unknown;
+const queueUrl = process.env.QUEUE_URL;
+
+if (!queueUrl) {
+  console.error("Umgebungsvariable QUEUE_URL fehlt.");
+  process.exit(1);
 }
 
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`Missing environment variable ${name}.`);
-    process.exit(1);
-  }
-  return value;
-}
-
-const queueUrl = required("QUEUE_URL");
 const client = new SQSClient({});
 
-// Long polling blocks for 20 seconds. Abort the request so that Ctrl-C answers
-// at once instead of after the poll returns.
 const controller = new AbortController();
 let running = true;
 
@@ -33,7 +22,7 @@ process.on("SIGINT", () => {
   controller.abort();
 });
 
-console.log(`Waiting for events on ${queueUrl}. Press Ctrl-C to stop.`);
+console.log(`Warte auf Events an ${queueUrl}. Ctrl-C beendet.`);
 
 while (running) {
   let messages;
@@ -54,13 +43,13 @@ while (running) {
   }
 
   for (const message of messages) {
-    const envelope = JSON.parse(message.Body ?? "{}") as EventBridgeEnvelope;
-    const detail = envelope.detail as { orderId?: string };
+    const envelope = parse<{ orderId: string }>(message.Body ?? "{}");
 
-    console.log(`Received ${envelope["detail-type"]} for order ${detail.orderId}`);
+    console.log(
+      `${envelope.type} für ${envelope.payload.orderId} empfangen ` +
+        `(id=${envelope.id}, correlationId=${envelope.correlationId})`,
+    );
 
-    // Delete only after the work succeeded. An unhandled error leaves the
-    // message on the queue, and the redrive policy moves it to the DLQ.
     await client.send(
       new DeleteMessageCommand({
         QueueUrl: queueUrl,
@@ -70,4 +59,4 @@ while (running) {
   }
 }
 
-console.log("Stopped.");
+console.log("Beendet.");

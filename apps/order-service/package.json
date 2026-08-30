@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-eventbridge": "^3.700.0"
+    "@platform/events": "file:../../packages/events"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

@@ -73,6 +73,8 @@ uses two provider configurations for this reason.
 ├── CODEOWNERS                          who must approve which path
 └── workflows/
     └── terraform.yml                   validate, plan on pull request, apply on main
+packages/
+└── events/                             the platform envelope: publish + parse
 apps/
 ├── order-service/                      publishes OrderCreated
 └── fulfillment-service/                consumes it from the queue
@@ -228,9 +230,22 @@ The consumer subscribes with this event pattern:
 
 ## Sample applications
 
-Two Node.js samples in `apps/`, one per team. They are deliberately small: one
-publish call and one receive loop. There is no shared library and no event
-envelope yet.
+Two Node.js samples in `apps/`, one per team. Both use `@platform/events` from
+`packages/events`, which owns the event envelope.
+
+The envelope carries `id`, `version`, `timestamp`, `domain`, `service`, `type`
+and `correlationId` around the payload. The library derives the two mandatory
+EventBridge fields from it, so envelope and routing cannot drift:
+
+```
+Source     = <prefix>.<domain>      com.example.orders
+DetailType = <type>                 OrderCreated
+Detail     = { ...envelope, payload }
+```
+
+The package is wired as a `file:` dependency. There is no registry and no build
+step: `tsx` reads the TypeScript source through the link. A private registry is
+the next step, not this one.
 
 Both read their AWS credentials from the environment, so `AWS_PROFILE` works.
 The identity you use needs `events:PutEvents` on the bus, or
@@ -257,8 +272,9 @@ export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
 npm start -- ORD-1001
 ```
 
-The consumer prints `Received OrderCreated for order ORD-1001`, then deletes the
-message.
+The consumer prints the event type, the payload and both ids, then deletes the
+message. The envelope id differs from the EventBridge id, and it survives a
+replay or an SDK retry. That is what a consumer deduplicates on.
 
 ## Manual test
 
@@ -439,9 +455,10 @@ them.
 - The execution role trust policy has no `aws:SourceArn` or `aws:SourceAccount`
   condition. It follows the AWS documentation example. Add a condition after you
   verify it against the EventBridge behaviour in your accounts.
-- The sample applications have no event envelope, no schema, no retries and no
-  structured logging. They exist to show the path, not to be copied into a
-  service.
+- The envelope library has no schema validation, no deduplication store and no
+  structured logging. It writes and reads the envelope, nothing else.
+- `@platform/events` is a `file:` dependency. Twelve teams need a private
+  registry, which is the next step.
 - Nothing verifies that a registered producer account actually restricts
   `events:PutEvents` to one service. The bus resource policy trusts the whole
   account. An `aws:PrincipalArn` condition per producer would bind it.
