@@ -50,15 +50,6 @@ Wir sind fertig, wenn:
 
 ![Zielarchitektur der Plattform für asynchrone Kommunikation](async-communication-architecture.png)
 
-Quelle: [`async-communication-architecture.drawio`](async-communication-architecture.drawio).
-Nach einer Änderung das PNG neu erzeugen:
-
-```bash
-/Applications/draw.io.app/Contents/MacOS/draw.io -x -f png -s 2 -b 12 \
-  -o docs/async-communication-architecture.png \
-  docs/async-communication-architecture.drawio
-```
-
 Ein Producer im Account des Order Service veröffentlicht über `PutEvents` auf
 den gemeinsamen Bus. Eine Rule je Subscription filtert auf den Inhalt und stellt
 über eine Execution Role in die SQS Queue im Account des Consumers zu. Die
@@ -135,6 +126,22 @@ nicht neu.
 
 Eine gemeinsame Bibliothek schreibt und liest den Envelope. Handgebaute
 Envelopes heben den Zweck auf.
+
+**Verhältnis zu den EventBridge-Feldern.** `Source`, `DetailType` und `Detail`
+sind Pflichtfelder: EventBridge weist einen Eintrag ohne sie zurück. Sie
+existieren also ohnehin, und die Bibliothek leitet sie aus dem Envelope ab,
+damit sie nicht auseinanderlaufen:
+
+```
+Source     = <Präfix>.<domain>      com.example.orders
+DetailType = <type>                 OrderCreated
+Detail     = { ...Envelope, payload }
+```
+
+Die Identität eines Events routet damit über `Source` und `DetailType`.
+Zusätzliche Bedingungen dürfen auf Felder in `Detail` matchen, zum Beispiel auf
+einen Mandanten oder eine Region. Sie ersetzen die Identität aber nicht. Zwei
+Wege für dieselbe Bedingung machen einen Rule-Diff im Review unlesbar.
 
 ### 2.5 Fehlerbehandlung: Retries, Dead-Letter-Queues, Idempotenz
 
