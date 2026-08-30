@@ -202,6 +202,8 @@ terraform/
     ├── platform/               Plattformteam; producers.tf registriert Producer
     └── consumers/
         └── fulfillment-service/   Produktteam B
+packages/
+└── events/                     der Envelope: publish() und parse()
 apps/
 ├── order-service/              veröffentlicht OrderCreated
 └── fulfillment-service/        konsumiert es
@@ -235,18 +237,30 @@ liest den State eines anderen Stacks, und niemand kopiert eine ARN.
 
 ### 3.3 Was der Prototyp zeigt und was er auslässt
 
-Durch Anwenden und ein Testevent nachgewiesen:
+Mit einem Testevent gegen die deployte Infrastruktur nachgewiesen:
 
-- ein Event überschreitet drei Account-Grenzen und kommt in der Queue des
-  Consumers an;
-- ein Event, das nicht auf das Pattern passt, wird an der Rule verworfen und
-  nicht erst zugestellt;
-- das Berechtigungsmodell funktioniert mit engen Policies auf beiden Seiten.
+- ein Event läuft über Bus, Rule, Execution Role und Queue bis zum Consumer;
+- ein Event, das nicht auf das Pattern passt, wird an der Rule verworfen. Es
+  wird nicht zugestellt und landet auch nicht in der Dead-Letter-Queue;
+- das Berechtigungsmodell trägt: Rolle und Queue Policy nennen einander, und
+  enger geht es nicht.
+
+Der Testlauf lief in einem einzigen AWS Account, weil nur ein Sandbox-Account
+zur Verfügung stand. Die Trennung ist im Code vollständig angelegt: das Modul
+kennt zwei Provider, und die Zustellung nutzt den Weg über Execution Role und
+Queue Policy, den ein echter Account-Wechsel verlangt. Nachgewiesen ist der
+Mechanismus, nicht der Account-Wechsel selbst.
+
+Beide Beispiele nutzen dieselbe Bibliothek für den Envelope. Sie leitet `Source`
+und `DetailType` aus dem Envelope ab, deshalb können Routing und Envelope nicht
+auseinanderlaufen. Die Bibliothek liegt als `file:`-Abhängigkeit im Repository,
+ohne Registry und ohne Build-Schritt. Für zwölf Teams ist ein privates Registry
+der nächste Schritt.
 
 Bewusst ausgelassen:
 
-- der Envelope und die gemeinsame Bibliothek; die Beispiele veröffentlichen ein
-  nacktes Event;
+- Schema-Validierung und ein Speicher für die Deduplizierung; die Bibliothek
+  legt `id` offen, entscheiden muss der Consumer;
 - die Dead-Letter-Queue an der Rule aus 2.5, die erste Lücke, die zu schließen
   ist;
 - Least Privilege beim Deployment; die Pipeline nutzt je Account eine
