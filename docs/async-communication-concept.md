@@ -381,8 +381,52 @@ eine Plattform beseitigen. Der nächste Schritt steht in Abschnitt 6.
 
 ### 5.1 Monitoring und Alarmierung
 
+Drei Alarme je Subscription, einer für jeden Weg, auf dem ein Event stehen
+bleibt. Sie gehören in das Modul `event-consumer`, damit ein Team sie nicht
+vergessen kann. Im Prototyp fehlen sie noch, siehe 3.3.
+
+| Alarm | Metrik | Was er bedeutet |
+|---|---|---|
+| Tiefe der Dead-Letter-Queues | `ApproximateNumberOfMessagesVisible` > 0 | Ein Event ist geparkt. Beide DLQs aus 2.5 sind gemeint. |
+| Fehlgeschlagene Zustellung | `FailedInvocations` der Rule | EventBridge hat endgültig aufgegeben. Retries und DLQ-Fälle zählt die Metrik nicht mit, deshalb ist jeder Wert echt. |
+| Alter der ältesten Message | `ApproximateAgeOfOldestMessage` | Nichts schlägt fehl, aber nichts kommt voran. Der Consumer steht oder ist zu langsam. |
+
+Der dritte ist der wichtigste. Die ersten beiden melden Fehler, der dritte
+meldet Stillstand. Stillstand fällt sonst erst auf, wenn jemand ein Ergebnis
+vermisst.
+
+Schwellen setzt das konsumierende Team. Es kennt seine Verarbeitungszeit; das
+Plattformteam kennt sie nicht.
+
 ### 5.2 Debugging eines Event-Flows
 
+Der Einstieg ist die Dead-Letter-Queue. Sie enthält das vollständige Event mit
+dem Envelope, also `id`, `correlationId`, `timestamp` und den produzierenden
+Service. Damit steht fest, was ankam und von wem.
+
+Die `correlationId` verbindet eine Kette. Wenn jeder Service sie bei jedem Log
+mitschreibt, lässt sich eine Choreografie über mehrere Teams hinweg verfolgen,
+ohne verteiltes Tracing zu betreiben.
+
+Wurde ein Event gar nicht zugestellt, hilft das Archive des Bus. Ein Replay
+stellt es erneut zu. Das ist möglich, weil Consumer idempotent sind: eine
+zweite Zustellung derselben `id` ist folgenlos.
+
 ### 5.3 Fehler und Incidents
+
+Ein Event in einer Dead-Letter-Queue ist ein Incident, kein Zähler. Er gehört
+dem **Team des Consumers**. Es besitzt das Abonnement, die Queue und den Code,
+der die Message nicht verarbeiten konnte.
+
+Das gilt auch für die Rule und die Execution Role, obwohl beide im
+Plattform-Account liegen. Der Ort einer Ressource entscheidet nicht über die
+Zuständigkeit, das Abonnement tut es.
+
+Beim Plattformteam liegt ein Incident nur, wenn er nicht einer Subscription
+gehört: der Bus ist nicht erreichbar, oder die Rules mehrerer Teams schlagen
+gleichzeitig fehl.
+
+Nach der Behebung schiebt ein Redrive die Messages aus der DLQ zurück in die
+Queue. Auch das trägt die Idempotenz aus 2.5.
 
 ## 6. Vision und Weiterentwicklung — 0,25 Seiten
