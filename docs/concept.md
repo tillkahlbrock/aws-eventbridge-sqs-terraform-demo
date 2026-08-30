@@ -2,9 +2,10 @@
 
 ## Todos
 
-- [] Implement the basic infra
-- [] Implement the module to be used by the teams
-- [] Implement client code for publishing and consuming messages (a package that also hold (or is able to look up) the bus address)
+- [x] Implement the basic infra
+- [x] Implement the module to be used by the teams
+- [x] Implement client code for publishing and consuming messages 
+- [] a package that also hold (or is able to look up) the bus address
 - [] Implement message schema + tooling
 - [] Finish this concept
 
@@ -79,3 +80,4 @@ Possible solutions
 - Least privilege at deploy time: replace the single admin role in the platform account with a scoped role per stack (limits a compromised pipeline, stops a stack from overwriting the last-write-wins bus resource policy)
 - Bind producers to a principal, not just an account: add an `aws:PrincipalArn` condition per producer to the bus resource policy
 - Deploy roles come from `terraform/bootstrap` here. In production an account provisioning mechanism would roll them out
+- Bootstrap names one workload account (`fulfillment_*`). With n workload accounts this becomes a map, like `producers.tf` in the platform stack

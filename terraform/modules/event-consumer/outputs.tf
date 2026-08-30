@@ -1,15 +1,15 @@
 output "queue_url" {
-  description = "URL of the consumer queue in the receiver workload account."
+  description = "URL of the consumer queue in the consumer's workload account."
   value       = aws_sqs_queue.this.url
 }
 
 output "queue_arn" {
-  description = "ARN of the consumer queue in the receiver workload account."
+  description = "ARN of the consumer queue in the consumer's workload account."
   value       = aws_sqs_queue.this.arn
 }
 
 output "dlq_arn" {
-  description = "ARN of the dead-letter queue in the receiver workload account."
+  description = "ARN of the dead-letter queue in the consumer's workload account."
   value       = aws_sqs_queue.dlq.arn
 }
 

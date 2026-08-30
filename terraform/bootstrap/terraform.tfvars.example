@@ -1,6 +1,6 @@
 region           = "eu-central-1"
 platform_profile = "platform-account"
-receiver_profile = "receiver-workload-account"
+fulfillment_profile = "fulfillment-service-account"
 
 # GitHub issues the subject claim with numeric owner and repository ids.
 # Read them with: gh api repos/OWNER/NAME --jq '.owner.id, .id'

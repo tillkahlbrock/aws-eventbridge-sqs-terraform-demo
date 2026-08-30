@@ -12,11 +12,11 @@ locals {
 }
 
 # --------------------------------------------------------------------------
-# Receiver workload account
+# Consumer workload account
 # --------------------------------------------------------------------------
 
 resource "aws_sqs_queue" "dlq" {
-  provider = aws.receiver
+  provider = aws.consumer
 
   name                      = var.dlq_name
   message_retention_seconds = var.dlq_message_retention_seconds
@@ -24,7 +24,7 @@ resource "aws_sqs_queue" "dlq" {
 }
 
 resource "aws_sqs_queue" "this" {
-  provider = aws.receiver
+  provider = aws.consumer
 
   name                      = var.queue_name
   message_retention_seconds = var.message_retention_seconds
@@ -38,7 +38,7 @@ resource "aws_sqs_queue" "this" {
 
 # Only the consumer queue can move messages into the dead-letter queue.
 resource "aws_sqs_queue_redrive_allow_policy" "dlq" {
-  provider = aws.receiver
+  provider = aws.consumer
 
   queue_url = aws_sqs_queue.dlq.id
 
@@ -48,9 +48,10 @@ resource "aws_sqs_queue_redrive_allow_policy" "dlq" {
   })
 }
 
-# The queue policy names the platform-side execution role as the only sender.
+# The queue policy names the platform-side execution role as the only principal
+# that may send to the queue.
 resource "aws_sqs_queue_policy" "this" {
-  provider = aws.receiver
+  provider = aws.consumer
 
   queue_url = aws_sqs_queue.this.id
 
@@ -119,7 +120,7 @@ resource "aws_cloudwatch_event_rule" "this" {
   provider = aws.platform
 
   name           = var.subscription_name
-  description    = "Delivers subscribed events from the shared bus to the receiver queue ${var.queue_name}."
+  description    = "Delivers subscribed events from the shared bus to the consumer queue ${var.queue_name}."
   event_bus_name = var.event_bus_name
   event_pattern  = local.event_pattern_json
   tags           = local.tags
