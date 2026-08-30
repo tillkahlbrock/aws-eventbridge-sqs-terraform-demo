@@ -24,9 +24,9 @@ oder Fehlerbehandlung selbst zu entwerfen.
 
 Wir sind fertig, wenn:
 
-- ein Team ein Event mit einem geprüften Pull Request abonniert;
+- ein Produkt-Team ein Event per Pull Request bestimmte Events abonnieren kann;
 - jedes Event einen Owner, ein Schema und einen veröffentlichten Namen hat;
-- keine Message still verloren geht und jeder Fehler dort landet, wo ein Mensch
+- keine Message still verloren gehen kann und jeder Fehler dort landet, wo ein Mensch
   ihn sieht;
 - das Plattformteam nicht im kritischen Pfad einer Routine-Subscription steht.
 
@@ -35,8 +35,8 @@ Wir sind fertig, wenn:
 - **Einen Command-Bus.** Siehe 2.3. Punkt-zu-Punkt-Kommunikation bekommt eine
   Queue, nicht den gemeinsamen Bus.
 - **IAM-Policies für Produkt-Identitäten.** Ein Team, das das AWS SDK aufruft,
-  kennt die nötige Berechtigung. Eine übergebene Policy erzwingt nichts.
-- **Eine Schema Registry, in der ersten Iteration.** Envelope und Review reichen,
+  kennt die nötige Berechtigung.
+- **Eine Schema Registry, in der ersten Iteration.** Konventionen für Envelope und Eventstruktur reichen,
   bis der Event-Katalog darüber hinauswächst.
 - **Self-Service Account Vending oder ein Entwicklerportal.** Pull Requests auf
   ein Repository decken zwölf Teams ab.
@@ -48,37 +48,14 @@ Wir sind fertig, wenn:
 
 ### 2.1 Zielarchitektur
 
-```mermaid
-flowchart LR
-  subgraph ORDER["Account Order Service — Produktteam A"]
-    P["Producer Service<br>publish() über gemeinsames SDK"]
-  end
+Diagramm: [`async-communication-architecture.drawio`](async-communication-architecture.drawio)
+— in draw.io öffnen. Für die Abgabe wird daraus als SVG oder PNG exportiert und
+an dieser Stelle eingebettet.
 
-  subgraph PLATFORM["Plattform-Account — Plattformteam"]
-    BUS["Gemeinsamer EventBridge Bus<br>Resource Policy je Producer-Account"]
-    RULE["Subscription Rule<br>Event Pattern je Consumer"]
-    ROLE["Execution Role für das Target"]
-    ARCHIVE["Archive und Replay"]
-    OBS["Metriken, Alarme, Tracing"]
-  end
-
-  subgraph FULFILLMENT["Account Fulfillment Service — Produktteam B"]
-    Q["SQS Queue"]
-    DLQ["Dead-Letter-Queue"]
-    C["Consumer Service<br>handle() über gemeinsames SDK"]
-  end
-
-  P -->|"PutEvents (Envelope)"| BUS
-  BUS --> RULE
-  BUS -.-> ARCHIVE
-  RULE -->|"nimmt Rolle an"| ROLE
-  ROLE -->|SendMessage| Q
-  Q --> C
-  Q -->|"maxReceiveCount überschritten"| DLQ
-  BUS -.-> OBS
-  Q -.-> OBS
-  DLQ -.-> OBS
-```
+Ein Producer im Account des Order Service veröffentlicht über `PutEvents` auf
+den gemeinsamen Bus. Eine Rule je Subscription filtert auf den Inhalt und stellt
+über eine Execution Role in die SQS Queue im Account des Consumers zu. Die
+Dead-Letter-Queue nimmt auf, was der Consumer wiederholt nicht verarbeiten kann.
 
 ### 2.2 Auswahl der AWS Services und geprüfte Alternativen
 
