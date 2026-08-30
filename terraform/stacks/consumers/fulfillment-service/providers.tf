@@ -1,5 +1,5 @@
 # Stack: fulfillment-service, the event consumer. Owner: Product Team B.
-# Deploys into: platform account and receiver workload account.
+# Deploys into: the platform account and the fulfillment-service account.
 #
 # The platform provider assumes the administrative deploy role of the Platform
 # Team. A scoped role per stack is a later improvement. See docs/concept.md.
@@ -33,7 +33,7 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias  = "receiver"
+  alias  = "fulfillment"
   region = var.region
 
   assume_role {

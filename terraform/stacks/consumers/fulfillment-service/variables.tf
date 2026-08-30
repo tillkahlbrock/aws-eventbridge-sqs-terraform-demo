@@ -5,7 +5,7 @@ variable "region" {
 }
 
 variable "deploy_role_arn" {
-  description = "Role in the receiver workload account that the pipeline assumes to apply this stack."
+  description = "Role in the fulfillment-service account that the pipeline assumes to apply this stack."
   type        = string
 }
 

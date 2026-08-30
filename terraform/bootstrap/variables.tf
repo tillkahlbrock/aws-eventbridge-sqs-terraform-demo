@@ -10,8 +10,8 @@ variable "platform_profile" {
   default     = null
 }
 
-variable "receiver_profile" {
-  description = "AWS profile with administrative access to the receiver workload account."
+variable "fulfillment_profile" {
+  description = "AWS profile with administrative access to the fulfillment-service account."
   type        = string
   default     = null
 }
@@ -50,8 +50,8 @@ variable "platform_deploy_role_name" {
   default     = "terraform-platform-deploy"
 }
 
-variable "receiver_deploy_role_name" {
-  description = "Name of the deploy role in the receiver workload account."
+variable "fulfillment_deploy_role_name" {
+  description = "Name of the deploy role in the fulfillment-service account."
   type        = string
   default     = "terraform-fulfillment-service-deploy"
 }

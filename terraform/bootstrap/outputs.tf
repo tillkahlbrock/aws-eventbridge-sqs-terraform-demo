@@ -8,9 +8,9 @@ output "platform_deploy_role_arn" {
   value       = aws_iam_role.platform_deploy.arn
 }
 
-output "receiver_deploy_role_arn" {
+output "fulfillment_deploy_role_arn" {
   description = "Set this as the FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN repository variable."
-  value       = aws_iam_role.receiver_deploy.arn
+  value       = aws_iam_role.fulfillment_deploy.arn
 }
 
 output "state_bucket_name" {

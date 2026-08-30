@@ -9,7 +9,7 @@ module "order_created_subscription" {
 
   providers = {
     aws.platform = aws.platform
-    aws.receiver = aws.receiver
+    aws.consumer = aws.fulfillment
   }
 
   event_bus_name    = data.aws_cloudwatch_event_bus.shared.name

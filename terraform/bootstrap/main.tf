@@ -6,8 +6,8 @@ data "aws_caller_identity" "platform" {
   provider = aws.platform
 }
 
-data "aws_caller_identity" "receiver" {
-  provider = aws.receiver
+data "aws_caller_identity" "fulfillment" {
+  provider = aws.fulfillment
 }
 
 data "aws_partition" "current" {
@@ -25,8 +25,8 @@ locals {
 
   # Built from names, not from the resources, so the trust and the grant do not
   # form a dependency cycle.
-  platform_deploy_role_arn = "arn:${local.partition}:iam::${data.aws_caller_identity.platform.account_id}:role/${var.platform_deploy_role_name}"
-  receiver_deploy_role_arn = "arn:${local.partition}:iam::${data.aws_caller_identity.receiver.account_id}:role/${var.receiver_deploy_role_name}"
+  platform_deploy_role_arn    = "arn:${local.partition}:iam::${data.aws_caller_identity.platform.account_id}:role/${var.platform_deploy_role_name}"
+  fulfillment_deploy_role_arn = "arn:${local.partition}:iam::${data.aws_caller_identity.fulfillment.account_id}:role/${var.fulfillment_deploy_role_name}"
 }
 
 # --------------------------------------------------------------------------
@@ -141,7 +141,7 @@ resource "aws_iam_role_policy" "pipeline" {
         Action = "sts:AssumeRole"
         Resource = [
           local.platform_deploy_role_arn,
-          local.receiver_deploy_role_arn,
+          local.fulfillment_deploy_role_arn,
         ]
       },
       {
@@ -197,10 +197,10 @@ resource "aws_iam_role_policy_attachment" "platform_deploy" {
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
-resource "aws_iam_role" "receiver_deploy" {
-  provider = aws.receiver
+resource "aws_iam_role" "fulfillment_deploy" {
+  provider = aws.fulfillment
 
-  name = var.receiver_deploy_role_name
+  name = var.fulfillment_deploy_role_name
   tags = local.tags
 
   assume_role_policy = jsonencode({
@@ -218,9 +218,9 @@ resource "aws_iam_role" "receiver_deploy" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "receiver_deploy" {
-  provider = aws.receiver
+resource "aws_iam_role_policy_attachment" "fulfillment_deploy" {
+  provider = aws.fulfillment
 
-  role       = aws_iam_role.receiver_deploy.name
+  role       = aws_iam_role.fulfillment_deploy.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }

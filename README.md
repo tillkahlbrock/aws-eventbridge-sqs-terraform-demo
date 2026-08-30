@@ -45,7 +45,7 @@ not an audit of arbitrary Terraform.
                 │ PutEvents             │ rule target
                 │                       │
 ┌───────────────┴──────────────┐  ┌─────▼────────────────────────┐
-│ Sender Workload Account      │  │ Receiver Workload Account    │
+│ Order Service Account        │  │ Fulfillment Service Account  │
 │ Product Team A               │  │ Product Team B               │
 │                              │  │                              │
 │ Nothing deployed here.       │  │ SQS Queue + DLQ              │
@@ -63,8 +63,8 @@ uses two provider configurations for this reason.
 | Account           | Owner          | Purpose                         | Resources in this demo                                              |
 |-------------------|----------------|---------------------------------|---------------------------------------------------------------------|
 | Platform          | Platform Team  | Shared eventing foundation      | Event bus, resource policy, consumer EventBridge rule and target    |
-| Sender workload   | Product Team A | Publishes domain events         | None. The team grants its own service `events:PutEvents`.           |
-| Receiver workload | Product Team B | Receives selected domain events | SQS queue, dead-letter queue, redrive configuration, queue policy   |
+| Order service     | Product Team A | Publishes domain events         | None. The team grants its own service `events:PutEvents`.           |
+| Fulfillment       | Product Team B | Receives selected domain events | SQS queue, dead-letter queue, redrive configuration, queue policy   |
 
 ## Repository layout
 
@@ -96,7 +96,7 @@ not. A product stack apply cannot damage the shared event bus.
 | Stack                                       | Owner          | Modules used                                 | Deploys into                           |
 |---------------------------------------------|----------------|----------------------------------------------|----------------------------------------|
 | `stacks/platform`                           | Platform Team  | `event-platform`                             | Platform account                       |
-| `stacks/consumers/fulfillment-service`      | Product Team B | `event-consumer`                             | Platform and receiver workload account |
+| `stacks/consumers/fulfillment-service`      | Product Team B | `event-consumer`                             | Platform and fulfillment-service account |
 
 Stacks are named after the service that owns them, not after the AWS account
 they target. One account can hold many stacks, and `fulfillment-service`
@@ -116,7 +116,7 @@ stack has not run yet.
 - Terraform 1.6 or later.
 - AWS provider 6.x. Terraform downloads it during `terraform init`.
 - Three AWS accounts, or three sets of credentials that map to them.
-- Administrative credentials for the platform and receiver accounts, once, to
+- Administrative credentials for the platform and fulfillment-service accounts, once, to
   run [Bootstrap](#bootstrap).
 - All three accounts use the same region. EventBridge sends events to
   cross-account targets in the same region only.
@@ -127,8 +127,8 @@ stack has not run yet.
 
 - the S3 bucket for the Terraform state;
 - the GitHub OIDC provider and the pipeline role in the platform account;
-- one administrative deploy role in the platform account and one in the receiver
-  workload account, both trusted by the pipeline role.
+- one administrative deploy role in the platform account and one in the
+  fulfillment-service account, both trusted by the pipeline role.
 
 Run it once, by hand, with administrative credentials for both accounts. It keeps
 local state, because it creates the bucket that every other stack writes to.
@@ -169,7 +169,7 @@ through the `assume_role` block in its `providers.tf`.
 | Stack                  | Assumes                                          | In account        |
 |------------------------|--------------------------------------------------|-------------------|
 | `platform`             | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
-| `fulfillment-service`  | `FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN`            | Receiver workload |
+| `fulfillment-service`  | `FULFILLMENT_SERVICE_DEPLOY_ROLE_ARN`            | Fulfillment       |
 | `fulfillment-service`  | `PLATFORM_DEPLOY_ROLE_ARN`                       | Platform          |
 
 The platform account uses one administrative role. Every stack that touches that
@@ -272,7 +272,7 @@ targets a bus in another account.
 
 ```bash
 aws events put-events \
-  --profile sender-workload-account \
+  --profile order-service-account \
   --region eu-central-1 \
   --entries '[{
     "Source": "com.example.orders",
@@ -284,11 +284,11 @@ aws events put-events \
 
 The response must report `"FailedEntryCount": 0`.
 
-Read the event from the consumer queue in the receiver workload account.
+Read the event from the consumer queue in the fulfillment-service account.
 
 ```bash
 aws sqs receive-message \
-  --profile receiver-workload-account \
+  --profile fulfillment-service-account \
   --region eu-central-1 \
   --queue-url "<queue_url output of the fulfillment-service stack>" \
   --max-number-of-messages 1
@@ -311,7 +311,7 @@ The delivery path uses an execution role.
    `events.amazonaws.com`.
 2. The identity policy of that role allows `sqs:SendMessage` on the consumer
    queue ARN only.
-3. The queue policy in the receiver account names that role ARN as the only
+3. The queue policy in the fulfillment-service account names that role ARN as the only
    allowed sender.
 4. The rule target sets `role_arn` to that role.
 
@@ -382,7 +382,7 @@ per-team stacks: there is one bus resource policy and it is last-write-wins.
 - An AWS account is a deployment target, not an identity. Account names bind a
   stack to exactly one account. One account can hold many services.
 - The consumer stack deploys into two accounts. It creates the EventBridge rule
-  in the platform account and the queues in the receiver workload account. An
+  in the platform account and the queues in the consumer's own account. An
   account name cannot describe it correctly.
 - Ownership follows the team and the service. Account names hide the owner.
 
