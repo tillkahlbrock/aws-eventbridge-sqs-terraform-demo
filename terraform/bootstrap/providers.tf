@@ -16,7 +16,7 @@ provider "aws" {
 }
 
 provider "aws" {
-  alias   = "receiver"
+  alias   = "fulfillment"
   region  = var.region
-  profile = var.receiver_profile
+  profile = var.fulfillment_profile
 }

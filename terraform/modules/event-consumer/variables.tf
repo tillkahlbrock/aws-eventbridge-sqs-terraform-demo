@@ -29,12 +29,12 @@ variable "event_pattern" {
 }
 
 variable "queue_name" {
-  description = "Name of the SQS queue in the receiver workload account."
+  description = "Name of the SQS queue in the consumer's workload account."
   type        = string
 }
 
 variable "dlq_name" {
-  description = "Name of the dead-letter queue in the receiver workload account."
+  description = "Name of the dead-letter queue in the consumer's workload account."
   type        = string
 }
 
