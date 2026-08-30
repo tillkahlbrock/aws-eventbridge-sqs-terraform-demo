@@ -430,3 +430,21 @@ Nach der Behebung schiebt ein Redrive die Messages aus der DLQ zurück in die
 Queue. Auch das trägt die Idempotenz aus 2.5.
 
 ## 6. Vision und Weiterentwicklung — 0,25 Seiten
+
+Vier Schritte, in dieser Reihenfolge. Jeder schließt eine benannte Lücke, keiner
+fügt eine Fähigkeit hinzu, die noch niemand verlangt hat.
+
+1. **Dead-Letter-Queue an der Rule.** Heute geht ein Event verloren, das
+   EventBridge nicht zustellen kann. Der billigste Schritt, und der einzige, der
+   Datenverlust schließt.
+2. **Privates Registry für die Envelope-Bibliothek.** Zwölf Teams können sie
+   nicht über einen Dateipfad einbinden.
+3. **Automatische Freigabe für Routine-Abonnements.** Ein Policy-Check gibt ein
+   Abonnement ohne Menschen frei. Review bleibt für einen neuen Producer, eine
+   domänenübergreifende Subscription oder ein Pattern ohne Event-Typ. Erst
+   danach steht das Plattformteam nicht mehr im kritischen Pfad.
+4. **Least Privilege beim Deployment.** Eine eng gefasste Rolle je Stack statt
+   einer administrativen je Account.
+
+Eine Schema Registry kommt, wenn der Katalog den Envelope und das Review
+übersteigt. Vorher wäre sie Werkzeug ohne Problem.
