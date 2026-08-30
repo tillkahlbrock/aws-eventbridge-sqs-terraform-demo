@@ -81,3 +81,5 @@ Possible solutions
 - Bind producers to a principal, not just an account: add an `aws:PrincipalArn` condition per producer to the bus resource policy
 - Deploy roles come from `terraform/bootstrap` here. In production an account provisioning mechanism would roll them out
 - Bootstrap names one workload account (`fulfillment_*`). With n workload accounts this becomes a map, like `producers.tf` in the platform stack
+
+- Rule-level dead-letter queue on the EventBridge target. Today only the queue has a DLQ. If EventBridge cannot deliver at all, it drops the event after 24 hours and 185 attempts
