@@ -243,7 +243,10 @@ Mit einem Testevent gegen die deployte Infrastruktur nachgewiesen:
 - ein Event, das nicht auf das Pattern passt, wird an der Rule verworfen. Es
   wird nicht zugestellt und landet auch nicht in der Dead-Letter-Queue;
 - das Berechtigungsmodell trägt: Rolle und Queue Policy nennen einander, und
-  enger geht es nicht.
+  enger geht es nicht;
+- der Envelope überlebt den Transport. Producer und Consumer sehen dieselbe
+  `id`, und sie ist eine andere als die von EventBridge vergebene. Genau darauf
+  dedupliziert ein Consumer.
 
 Der Testlauf lief in einem einzigen AWS Account, weil nur ein Sandbox-Account
 zur Verfügung stand. Die Trennung ist im Code vollständig angelegt: das Modul
@@ -251,9 +254,7 @@ kennt zwei Provider, und die Zustellung nutzt den Weg über Execution Role und
 Queue Policy, den ein echter Account-Wechsel verlangt. Nachgewiesen ist der
 Mechanismus, nicht der Account-Wechsel selbst.
 
-Beide Beispiele nutzen dieselbe Bibliothek für den Envelope. Sie leitet `Source`
-und `DetailType` aus dem Envelope ab, deshalb können Routing und Envelope nicht
-auseinanderlaufen. Die Bibliothek liegt als `file:`-Abhängigkeit im Repository,
+Die Bibliothek liegt als `file:`-Abhängigkeit im Repository,
 ohne Registry und ohne Build-Schritt. Für zwölf Teams ist ein privates Registry
 der nächste Schritt.
 
