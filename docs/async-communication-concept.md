@@ -65,7 +65,7 @@ einen Ausfall des Consumers und unterstützt eine Dead-Letter-Queue.
 
 | Option | Verworfen, weil |
 |---|---|
-| SNS und SQS | Einfacher zu erklären, aber das Routing wird mit dem Wachstum der Plattform unübersichtlich. Fan-out braucht ein Topic je Event-Typ, und Filter Policies prüfen Attribute statt Inhalt. |
+| SNS und SQS | Fan-out braucht ein Topic je Event-Typ, also viele Topics und viele Resource Policies. Ein Producer wird je Topic freigeschaltet statt einmal für die Plattform. Es gibt kein Archive und kein Replay. Die Filterung ist kein Argument: SNS prüft mit `FilterPolicyScope = MessageBody` ebenfalls den Inhalt. |
 | MSK oder Kafka | Starke Eigenschaften bei Reihenfolge und Retention. Der Betriebsaufwand ist für ein Plattformteam von fünf Personen zu hoch. |
 | Queue je Service-Paar | Das ist die Ausgangslage. Sie koppelt Producer an Consumer und verdeckt die Ownership. |
 
@@ -111,6 +111,7 @@ Envelope enthält mindestens:
 | `domain` | Der Problemraum, zum Beispiel `orders`. |
 | `service` | Der produzierende Service. |
 | `type` | Der Event-Typ, zum Beispiel `OrderCreated`. |
+| `correlationId` | Verbindet eine Kette von Events über Servicegrenzen. Ohne eigenen Wert beginnt mit diesem Event eine neue Kette. |
 
 Wir nutzen eine eigene ID, weil EventBridge bei einem Replay und bei einem
 SDK-Retry eine neue ID vergibt. Dieselbe Tatsache kann also zweimal mit zwei
@@ -157,8 +158,10 @@ Visibility Timeout in die Queue zurück. Nach `maxReceiveCount` Empfängen schie
 die Redrive Policy sie in die Dead-Letter-Queue im Account des Consumers.
 
 Idempotenz ist Aufgabe des Consumers, weil die Zustellung mindestens einmal
-erfolgt. Der Consumer speichert die `id` aus dem Envelope und überspringt eine
-Wiederholung. Die gemeinsame Bibliothek liefert das mit.
+erfolgt. Die Bibliothek legt die `id` offen. Den Speicher, gegen den ein
+Consumer prüft, bringt sie nicht mit: nur der Service weiß, wie lange eine
+Wiederholung folgenlos bleiben muss und was ein Duplikat für ihn kostet. Im
+Prototyp fehlt der Speicher, siehe 3.3.
 
 Jede Dead-Letter-Queue wird auf ihre Füllhöhe alarmiert. Eine Message in einer
 DLQ ist ein Incident, keine Statistik. Siehe 5.3.
@@ -177,10 +180,22 @@ Die Identity Policy dieser Rolle erlaubt `sqs:SendMessage` auf genau eine
 Queue-ARN. Die Queue Policy im Consumer-Account nennt diese Rolle als einzigen
 zugelassenen Absender.
 
+**Identität eines Producers.** Die Bus-Policy erlaubt bisher einen ganzen
+Account. Damit kann jeder Principal dort unter jeder `Source` veröffentlichen,
+also im Namen einer fremden Domain. `events:source` ist ein Condition Key für
+`PutEvents`, deshalb schließt eine Bedingung die Lücke:
+
+```json
+"Condition": { "StringLike": { "events:source": "com.example.orders*" } }
+```
+
+Der Prototyp hat sie noch nicht, siehe 3.3.
+
 Die Isolation folgt der Account-Grenze. Die Queue eines Consumers liegt im
 Account des Consumers. Ein lauter oder defekter Consumer kann deshalb kein
-anderes Team beeinträchtigen. Der gemeinsame Bus ist die einzige geteilte
-Komponente, und nur das Plattformteam schreibt darauf.
+anderes Team beeinträchtigen. Der Bus ist die einzige geteilte Komponente. Seine
+Konfiguration ändert nur das Plattformteam; Produktteams schreiben ausschließlich
+Events darauf.
 
 ## 3. Terraform-Prototyp
 
@@ -259,6 +274,8 @@ Bewusst ausgelassen:
 
 - Schema-Validierung und ein Speicher für die Deduplizierung; die Bibliothek
   legt `id` offen, entscheiden muss der Consumer;
+- die Bedingung auf `events:source` aus 2.6; die Bus-Policy erlaubt bisher den
+  ganzen Producer-Account;
 - die Dead-Letter-Queue an der Rule aus 2.5, die erste Lücke, die zu schließen
   ist;
 - Least Privilege beim Deployment; die Pipeline nutzt je Account eine
