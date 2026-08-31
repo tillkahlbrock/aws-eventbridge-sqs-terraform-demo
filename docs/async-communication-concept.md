@@ -2,6 +2,9 @@
 
 <!-- Ergebnis zur Aufgabe in docs/PlatformAufgabeE.pdf. Grenze: 6 Seiten. -->
 
+Das MVP zu diesem Konzept liegt unter
+[github.com/tillkahlbrock/aws-eventbridge-sqs-terraform-demo](https://github.com/tillkahlbrock/aws-eventbridge-sqs-terraform-demo).
+
 ## 1. Kontext, Ziel und Nicht-Ziele
 
 Zwölf Produktteams, über zwanzig Services, je Team gewachsene Lösungen. Kein
