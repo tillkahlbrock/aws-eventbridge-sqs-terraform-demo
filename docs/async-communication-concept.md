@@ -8,10 +8,11 @@ Zwölf Produktteams, über zwanzig Services, je Team gewachsene Lösungen. Kein
 Standard für Events, Retries und Fehlerbehandlung, unklare Ownership, verlorene
 Messages.
 
-Ziel ist ein Golden Path: veröffentlichen oder abonnieren, ohne Transport,
-Retries und Fehlerbehandlung selbst zu entwerfen. Erreicht ist er, wenn ein
-Abonnement ein geprüfter Pull Request ist, kein Fehler still bleibt und das
-Plattformteam nicht in jedem Vorgang steckt.
+Ziel ist ein Golden Path: veröffentlichen oder abonnieren soll ohne Transport,
+Retries und Fehlerbehandlung selbst zu entwerfen möglich sein. Das Ziel ist erreicht, wenn 
+- ein Abonnement ein nur durch einen Pull Request erstellt werden kann, 
+- kein Fehler unentdeckt bleiben kann
+- und das Plattformteam nicht der Flaschenhals ist.
 
 **Was wir nicht bauen**, unabhängig vom Reifegrad:
 
@@ -50,23 +51,16 @@ mindestens einmal. Consumer müssen idempotent sein, siehe 2.5.
 
 ### 2.3 Events und Commands
 
-Wir unterstützen **Events** und bauen keinen Command-Bus.
+Diese Lösung unterstützt **Events** und ist kein Command-Bus.
 
 Bei einem Event besitzt der Producer das Schema und kennt seine Consumer nicht.
 Bei einem Command besitzt der Empfänger das Schema, und der Sender muss ihn
-kennen — genau die Kopplung, die asynchrone Kommunikation auflösen soll.
+kennen — genau die Kopplung, die eventbasierte Kommunikation hier auflösen soll.
 
-EventBridge entscheidet die Frage: seine Rules sind Inhaltsfilter, die der
-Consumer definiert. Auf dem gemeinsamen Bus wird aus „wer führt das aus" ein
-„wer auf das Pattern passt", und die Garantie auf genau einen Handler ist weg.
-
-Punkt-zu-Punkt-Bedarf ist fast immer Lastausgleich, nicht Routing. Dafür gibt es
-ein Modul mit SQS und Dead-Letter-Queue, ohne Bus und ohne Rule. Was eine
-Antwort braucht, bleibt ein HTTP-Aufruf.
-
-Durchgesetzt wird die Trennung über Benennung: Events in der Vergangenheit
-(`OrderCreated`), Commands im Imperativ (`ShipOrder`). Ein Pull Request mit
-`SendEmail` auf dem Bus fällt damit im Review auf.
+Für asynchrone Commands muss eine zweites System erstellt werden, das auf Punkt-zu-Punkt Kommunikation basiert. 
+Dies ist nicht teil dieses Konzepts.
+Dafür würden wir ein zusätzliches Modul erstelen mit SQS und Dead-Letter-Queue, ohne Bus und ohne Rules.
+Die Events, die auf die Commands folgen, würden dann wieder die Event-Infrastruktur nutzen.
 
 ### 2.4 Event-Schema und Envelope
 
@@ -83,8 +77,8 @@ Jedes Event trägt einen Envelope um die fachliche Nutzlast:
 | `correlationId` | Verbindet eine Kette über Servicegrenzen. |
 
 Die eigene ID ist nötig, weil EventBridge bei Replay und SDK-Retry eine neue
-vergibt: dieselbe Tatsache käme zweimal mit zwei IDs an. Der Envelope ist zudem
-transportunabhängig.
+vergibt: dasselbe Event käme zweimal mit zwei unterschiedlichen IDs an. Der Envelope ist zudem
+transportunabhängig (SQS, SNS, Kinesis, ...).
 
 `Source`, `DetailType` und `Detail` sind Pflichtfelder. Die Bibliothek leitet
 sie aus dem Envelope ab, damit beide nicht auseinanderlaufen:
@@ -95,10 +89,7 @@ DetailType = <type>                 OrderCreated
 Detail     = { ...Envelope, payload }
 ```
 
-Die Identität routet damit über `Source` und `DetailType`. Zusätzliche
-Bedingungen dürfen auf `Detail` matchen, etwa auf einen Mandanten, ersetzen die
-Identität aber nicht. Zwei Wege für dieselbe Bedingung machen einen Rule-Diff
-unlesbar.
+`Source` und `DetailType` tragen die Identität eines Events, und genau darauf matchen die Rules. Zusätzliche Bedingungen dürfen auf `Detail` matchen, etwa auf einen Mandanten — sie ersetzen die Identität aber nicht.
 
 ### 2.5 Fehlerbehandlung: Retries, Dead-Letter-Queues, Idempotenz
 
@@ -143,7 +134,7 @@ Komponente, und seine Konfiguration ändert nur das Plattformteam.
 
 ## 3. Terraform-Prototyp
 
-Ein lauffähiges Repository, deployt, mit einem Event über den ganzen Weg.
+Ein lauffähiges [Repository](https://github.com/tillkahlbrock/aws-eventbridge-sqs-terraform-demo), deployt, mit einem Event über den ganzen Weg.
 
 ```
 terraform/
@@ -159,27 +150,21 @@ packages/events/                der Envelope: publish() und parse()
 apps/                           je ein Beispiel für Producer und Consumer
 ```
 
-Ein Repository, im Besitz des Plattformteams; `CODEOWNERS` verlangt die
-Freigabe, eine Pipeline wendet an. Der State ist je Stack getrennt, damit ein
-Produktteam den Bus nicht beschädigen kann.
+Ein Repository, im Besitz des Plattformteams; `CODEOWNERS` erzwingt die
+Freigabe, eine Pipeline (Github Action) wendet an. Der State ist je Stack getrennt, damit ein
+Produktteam die geteilte Infrastruktur nicht versehentlich beschädigen kann.
 
 `event-consumer` setzt Redrive Policy, `maxReceiveCount`, Retention, Execution
 Role und beide Resource Policies. Es deklariert zwei Provider-Aliase und
-konfiguriert weder Credentials noch Region, arbeitet also für jeden
+konfiguriert weder Credentials noch Region, funktioniert also für jeden
 Consumer-Account. Den Bus lösen Stacks über seinen Namen auf, nicht über fremden
 State.
 
-**Nachgewiesen** mit einem Testevent gegen die deployte Infrastruktur: ein Event
-läuft bis zum Consumer, ein Event ohne passendes Pattern wird an der Rule
-verworfen, und die Envelope-`id` überlebt den Transport. Der Testlauf lief
-mangels zweitem Sandbox-Account in einem Account — nachgewiesen ist der
-Mechanismus, nicht der Account-Wechsel.
-
 ## 4. Developer Experience und Golden Path
 
-### 4.1 Der Weg
+### 4.1 Der Pfad
 
-Zwei Berührungspunkte mit der Plattform, beide ein Pull Request: ein Eintrag in
+Es gibt zwei Berührungspunkte mit der Plattform, beide sind ein Pull Request: ein Eintrag in
 `producers.tf` zum Veröffentlichen, ein Stack-Verzeichnis zum Abonnieren.
 
 **Veröffentlichen.** Einmalig trägt das Team seinen Account ein. Danach ohne
@@ -192,8 +177,7 @@ await publish({
 });
 ```
 
-Ein neuer Event-Typ braucht keinen Pull Request. Wer niemanden hat, der zuhört,
-stört auch niemanden.
+Ein neuer Event-Typ braucht keinen Pull Request. Es muss nur einmalig das Senden der Events aus dem Quell-Account erlaubt werden. 
 
 **Abonnieren.** Der ganze Inhalt eines Consumer-Stacks ist ein Modulblock:
 
@@ -236,8 +220,7 @@ gesamte Subscription; die Beispiele in `apps/` als Vorlage zum Kopieren.
 
 Neue Events zuerst; bestehende Queues und Cronjobs bleiben, solange sie halten
 — eine Migration ohne neuen Nutzen kostet Vertrauen. Das Plattformteam begleitet
-das erste Abonnement je Team, danach nicht mehr. Als Maß taugt die Zahl der
-Teams mit einem Abonnement, nicht die Events pro Sekunde.
+die ersten Abonnements je Team. Als Maß taugt die Zahl der Teams die die Lösung nutzen, nicht die Events pro Sekunde.
 
 ## 5. Betrieb und Stabilität
 
@@ -264,22 +247,37 @@ auch wenn Rule und Execution Role im Plattform-Account liegen. Der Ort einer
 Ressource entscheidet nicht über die Zuständigkeit, das Abonnement tut es. Beim
 Plattformteam liegt ein Incident nur, wenn er keiner Subscription gehört.
 
+### Alarmierung
+
+Wie Alarme die Teams erreichen: Alarmierung ist eine zentrale Fähigkeit der Plattform 
+und wird nicht von jedem Team individuell umgesetzt. Das Modul erstellt die notwendigen 
+Alarme inklusive SNS-Topic. Die Plattform übernimmt die Anbindung an Chat und Incident-Management 
+und definiert einheitliche Eskalationsregeln.
+
+Dabei wird nach Dringlichkeit unterschieden: Eine Nachricht in der Dead-Letter-Queue kann 
+beispielsweise bis zum nächsten Werktag warten, während ein kontinuierlich steigendes Alter 
+der ältesten Nachricht eine sofortige Alarmierung auslöst. Das Produkt-Team konfiguriert 
+lediglich das Ziel – etwa den eigenen Kanal – und ob ein Alarm außerhalb der Arbeitszeiten wecken darf.
+
+Individuelle Zustellwege pro Team würden zu unterschiedlichen Eskalationsmechanismen führen 
+und es erschweren sicherzustellen, dass kritische Alarme tatsächlich einen Menschen erreichen. 
+Die Verantwortung für den Incident bleibt beim Team des Consumers; die zuverlässige Alarmierung 
+dieses Teams liegt bei der Plattform.
+
 ## 6. Vision und Weiterentwicklung
 
-Jeder Schritt schließt eine Lücke des Prototyps, keiner fügt eine Fähigkeit
-hinzu, die niemand verlangt hat.
+Jeder Schritt schließt eine Lücke des Prototyps.
 
-1. **Dead-Letter-Queue an der Rule.** Der einzige Schritt, der Datenverlust
-   schließt: heute geht ein nicht zustellbares Event verloren.
-2. **Alarme und `events:source` in das Modul.** Beides ist im Konzept
-   entschieden und im Prototyp offen.
-3. **Privates Registry für die Envelope-Bibliothek.** Zwölf Teams binden sie
+1. **Privates Registry für die Bibliothek.** Zwölf Teams binden sie
    nicht über einen Dateipfad ein.
-4. **Automatische Freigabe für Routine-Abonnements.** Ein Policy-Check gibt
+2. **Automatische Freigabe für Routine-Abonnements.** Ein Policy-Check gibt
    frei; Review bleibt für Ausnahmen. Erst danach steht das Plattformteam nicht
    mehr im kritischen Pfad.
-5. **Least Privilege beim Deployment.** Eine enge Rolle je Stack statt einer
+3. **Least Privilege beim Deployment.** Eine enge Rolle je Stack statt einer
    administrativen je Account.
+4. **Client-Code-Generierung.** Eines eines Tools zum Serialisieren und für Client-Generierung wie z.B. Protobuff oder FlatBuffers.
+5. **Abstraktion über Terraform.** Eine Abstraktionsschicht, die es Teams ermöglich, Subscriptions zu erstellen, ohne Terraform Code schreiben zu müssen.
+6. **Schützen der Platform-Ressourcen.** Platform-Ressourcen in den Workload Accounts sollten geschützt werden. Vermutlich mit Tags + SCPs.
 
 Eine Schema Registry kommt, wenn der Katalog Envelope und Review übersteigt —
 vorher wäre sie Werkzeug ohne Problem.
