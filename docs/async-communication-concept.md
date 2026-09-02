@@ -212,6 +212,10 @@ Der Consumer liest die Queue und bekommt den Envelope getypt zurück:
 const envelope = parse<{ orderId: string }>(message.Body);
 ```
 
+Er prüft `version` vor der Payload, erkennt ein Duplikat an `id` und gibt
+`envelope.correlationId` an sein eigenes Folge-Event weiter. Damit trägt eine
+Kette über mehrere Teams dieselbe ID. Das Beispiel in `apps/` zeigt alle drei.
+
 Eine spätere Änderung ist ein Ein-Zeilen-Diff am `event_pattern`. Genau das ist
 die Absicht: ein Reviewer liest ein Pattern, nicht Terraform.
 
