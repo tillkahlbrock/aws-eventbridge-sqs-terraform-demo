@@ -137,8 +137,8 @@ export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
 npm start -- ORD-1001
 ```
 
-`--correlation-id=REQ-42` starts the chain at an upstream request instead of at
-the event. Without it the library assigns a new correlation id.
+The producer starts a new chain, so the correlation id equals the envelope id.
+The consumer passes that id on to its own event.
 
 ### Consumer
 
