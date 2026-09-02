@@ -11,8 +11,6 @@ const orderId = process.argv[2] ?? `ORD-${Date.now()}`;
 
 const payload: OrderCreatedPayload = { orderId, totalCents: 4999 };
 
-// Ohne eigene correlationId beginnt hier eine neue Kette. Der Consumer gibt
-// sie an sein Folge-Event weiter.
 const envelope = await publish({
   domain: ORDERS_DOMAIN,
   service: ORDER_SERVICE,
