@@ -1,14 +1,25 @@
 import { publish } from "@platform/events";
+import {
+  ORDERS_DOMAIN,
+  ORDER_CREATED,
+  ORDER_CREATED_VERSION,
+  ORDER_SERVICE,
+  type OrderCreatedPayload,
+} from "./events.js";
 
 const orderId = process.argv[2] ?? `ORD-${Date.now()}`;
 
+const payload: OrderCreatedPayload = { orderId, totalCents: 4999 };
+
 const envelope = await publish({
-  domain: "orders",
-  service: "order-service",
-  type: "OrderCreated",
-  payload: { orderId },
+  domain: ORDERS_DOMAIN,
+  service: ORDER_SERVICE,
+  type: ORDER_CREATED,
+  version: ORDER_CREATED_VERSION,
+  payload,
 });
 
 console.log(
-  `OrderCreated für ${orderId} veröffentlicht, Envelope-ID ${envelope.id}`,
+  `${envelope.type} für ${orderId} veröffentlicht ` +
+    `(id=${envelope.id}, correlationId=${envelope.correlationId})`,
 );

@@ -100,7 +100,7 @@ Your local credentials must be able to assume the role in `deploy_role_arn`.
 ## Sample applications
 
 Two Node.js samples in `apps/`, one per team. Both use `@platform/events` from
-`packages/events`, which owns the event envelope.
+`packages/events`, which owns the event envelope. Copy them as a template.
 
 The envelope carries `id`, `version`, `timestamp`, `domain`, `service`, `type`
 and `correlationId` around the payload. The library derives the two mandatory
@@ -112,6 +112,10 @@ DetailType = <type>                 OrderCreated
 Detail     = { ...envelope, payload }
 ```
 
+Each app declares the events that it owns in its own `src/events.ts`. The
+producer owns the schema of `OrderCreated`. The consumer declares only the
+fields that it reads, so a new field in the payload does not break it.
+
 The package is wired as a `file:` dependency. There is no registry and no build
 step: `tsx` reads the TypeScript source through the link. A private registry is
 the next step, not this one.
@@ -121,17 +125,9 @@ The identity you use needs `events:PutEvents` on the bus, or
 `sqs:ReceiveMessage` and `sqs:DeleteMessage` on the queue. This repository does
 not grant either. See [Why there is no producer stack](async-communication-concept.md).
 
-Start the consumer. It long-polls until you press Ctrl-C.
+### Producer
 
-```bash
-cd apps/fulfillment-service
-npm install
-export AWS_REGION=eu-central-1
-export QUEUE_URL="<queue_url output of the fulfillment-service stack>"
-npm start
-```
-
-Publish an event in a second terminal. The order id is optional.
+Publish an event. The order id is optional.
 
 ```bash
 cd apps/order-service
@@ -141,9 +137,46 @@ export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
 npm start -- ORD-1001
 ```
 
-The consumer prints the event type, the payload and both ids, then deletes the
-message. The envelope id differs from the EventBridge id, and it survives a
-replay or an SDK retry. That is what a consumer deduplicates on.
+The producer starts a new chain, so the correlation id equals the envelope id.
+The consumer passes that id on to its own event.
+
+### Consumer
+
+Start the consumer. It long-polls until you press Ctrl-C.
+
+```bash
+cd apps/fulfillment-service
+npm install
+export AWS_REGION=eu-central-1
+export QUEUE_URL="<queue_url output of the fulfillment-service stack>"
+export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
+npm start
+```
+
+The consumer needs the bus, because it publishes a follow-up event. It stops at
+once when one of the two variables is missing.
+
+For each message the consumer does five things. Each one uses a field of the
+envelope:
+
+1. It parses the body. A body that it cannot read stays in the queue and goes
+   to the dead-letter queue after `maxReceiveCount`. A retry cannot repair it.
+2. It compares `version` before it reads the payload. An unsupported version
+   also stays for the dead-letter queue.
+3. It skips an `id` that it processed before. The envelope id differs from the
+   EventBridge id, and it survives a replay or an SDK retry. That is what a
+   consumer deduplicates on. The sample holds these ids in memory. In
+   production a DynamoDB table with a TTL holds them.
+4. It publishes `ShipmentPrepared` with the `correlationId` of the order event.
+   The chain now spans two services and two domains, and one query finds both
+   events.
+5. It deletes the message.
+
+A consumer is normally a producer as well. This one publishes into the
+`fulfillment` domain. The platform account must therefore list the account of
+the consumer in `terraform/stacks/platform/producers.tf`. Until that entry
+exists, `PutEvents` is refused. The order event then stays in the queue and
+goes to the dead-letter queue after `maxReceiveCount`.
 
 ## Manual test
 
