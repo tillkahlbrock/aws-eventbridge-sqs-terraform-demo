@@ -95,8 +95,13 @@ async function handleMessage(message: Message): Promise<boolean> {
   try {
     envelope = parse<OrderCreatedRead>(message.Body ?? "");
   } catch (error) {
-    // Poison Message. Ein Retry ändert nichts, die DLQ ist der richtige Ort.
-    console.error(`Message nicht lesbar, bleibt für die DLQ: ${describe(error)}`);
+    // Poison Message. Ein Retry repariert sie nicht. SQS hat aber keinen
+    // anderen Weg in die DLQ: die Message muss maxReceiveCount Empfänge
+    // durchlaufen.
+    console.error(
+      `Message nicht lesbar, geht nach maxReceiveCount in die DLQ: ` +
+        describe(error),
+    );
     return false;
   }
 
@@ -104,7 +109,8 @@ async function handleMessage(message: Message): Promise<boolean> {
   if (envelope.version !== SUPPORTED_ORDER_CREATED_VERSION) {
     console.error(
       `Version ${envelope.version} wird nicht unterstützt, erwartet ` +
-        `${SUPPORTED_ORDER_CREATED_VERSION}. Message bleibt für die DLQ.`,
+        `${SUPPORTED_ORDER_CREATED_VERSION}. Die Message geht nach ` +
+        `maxReceiveCount in die DLQ.`,
     );
     return false;
   }
