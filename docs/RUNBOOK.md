@@ -137,16 +137,8 @@ export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
 npm start -- ORD-1001
 ```
 
-`--correlation-id REQ-42` starts the chain at an upstream request instead of at
+`--correlation-id=REQ-42` starts the chain at an upstream request instead of at
 the event. Without it the library assigns a new correlation id.
-
-`--dry-run` prints the envelope and both routing fields, and calls no AWS API.
-Use it to compare the two routing fields against the `event_pattern` of a
-consumer stack:
-
-```bash
-npm start -- ORD-1001 --dry-run
-```
 
 ### Consumer
 
@@ -157,8 +149,12 @@ cd apps/fulfillment-service
 npm install
 export AWS_REGION=eu-central-1
 export QUEUE_URL="<queue_url output of the fulfillment-service stack>"
+export EVENT_BUS_ARN="<event_bus_arn output of the platform stack>"
 npm start
 ```
+
+The consumer needs the bus, because it publishes a follow-up event. It stops at
+once when one of the two variables is missing.
 
 For each message the consumer does five things. Each one uses a field of the
 envelope:
@@ -177,10 +173,10 @@ envelope:
 5. It deletes the message.
 
 A consumer is normally a producer as well. This one publishes into the
-`fulfillment` domain, so the platform account must list the account of the
-consumer in `terraform/stacks/platform/producers.tf`. Without `EVENT_BUS_ARN`
-the consumer prints the follow-up envelope instead, and the chain stays visible
-without a change to the platform stack.
+`fulfillment` domain. The platform account must therefore list the account of
+the consumer in `terraform/stacks/platform/producers.tf`. Until that entry
+exists, `PutEvents` is refused. The order event then stays in the queue and
+goes to the dead-letter queue after `maxReceiveCount`.
 
 ## Manual test
 

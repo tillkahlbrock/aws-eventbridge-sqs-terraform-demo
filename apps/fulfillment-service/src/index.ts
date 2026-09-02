@@ -4,13 +4,7 @@ import {
   ReceiveMessageCommand,
   SQSClient,
 } from "@aws-sdk/client-sqs";
-import {
-  createEnvelope,
-  parse,
-  publish,
-  toRoutingFields,
-  type Envelope,
-} from "@platform/events";
+import { parse, publish, type Envelope } from "@platform/events";
 import {
   FULFILLMENT_DOMAIN,
   FULFILLMENT_SERVICE,
@@ -25,6 +19,13 @@ const queueUrl = process.env.QUEUE_URL;
 
 if (!queueUrl) {
   console.error("Umgebungsvariable QUEUE_URL fehlt.");
+  process.exit(1);
+}
+
+// Der Service konsumiert und veröffentlicht. Die Prüfung steht hier, damit ein
+// halb konfigurierter Prozess nicht erst am ersten Event scheitert.
+if (!process.env.EVENT_BUS_ARN) {
+  console.error("Umgebungsvariable EVENT_BUS_ARN fehlt.");
   process.exit(1);
 }
 
@@ -143,29 +144,15 @@ async function prepareShipment(
     shipmentId: `SHP-${order.payload.orderId}`,
   };
 
-  const input = {
+  // Veröffentlichen braucht einen Eintrag in producers.tf für diesen Account.
+  const envelope = await publish({
     domain: FULFILLMENT_DOMAIN,
     service: FULFILLMENT_SERVICE,
     type: SHIPMENT_PREPARED,
     version: SHIPMENT_PREPARED_VERSION,
     payload,
     correlationId: order.correlationId,
-  };
-
-  // Veröffentlichen braucht einen Eintrag in producers.tf für diesen Account.
-  // Ohne EVENT_BUS_ARN zeigt der Dry-Run die Kette trotzdem.
-  if (!process.env.EVENT_BUS_ARN) {
-    const envelope = createEnvelope(input);
-    const routing = toRoutingFields(envelope);
-
-    console.log(
-      `Dry-Run ${routing.source} ${routing.detailType} ` +
-        `(id=${envelope.id}, correlationId=${envelope.correlationId})`,
-    );
-    return;
-  }
-
-  const envelope = await publish(input);
+  });
 
   console.log(
     `${envelope.type} veröffentlicht ` +
