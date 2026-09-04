@@ -13,6 +13,11 @@ output "dlq_arn" {
   value       = aws_sqs_queue.dlq.arn
 }
 
+output "target_dlq_arn" {
+  description = "ARN of the rule's dead-letter queue in the platform account. EventBridge parks events here that it cannot deliver."
+  value       = aws_sqs_queue.target_dlq.arn
+}
+
 output "event_rule_arn" {
   description = "ARN of the EventBridge rule in the platform account."
   value       = aws_cloudwatch_event_rule.this.arn

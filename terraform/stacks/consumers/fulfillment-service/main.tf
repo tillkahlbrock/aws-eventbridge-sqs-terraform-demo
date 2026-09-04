@@ -39,6 +39,11 @@ output "dlq_arn" {
   value       = module.order_created_subscription.dlq_arn
 }
 
+output "target_dlq_arn" {
+  description = "ARN of the rule's dead-letter queue in the platform account."
+  value       = module.order_created_subscription.target_dlq_arn
+}
+
 output "event_rule_name" {
   description = "Name of the EventBridge rule in the platform account."
   value       = module.order_created_subscription.event_rule_name
