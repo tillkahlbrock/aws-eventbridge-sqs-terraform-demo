@@ -9,6 +9,7 @@ locals {
   event_pattern_json = can(tostring(var.event_pattern)) ? tostring(var.event_pattern) : jsonencode(var.event_pattern)
 
   execution_role_name = coalesce(var.eventbridge_execution_role_name, "${var.subscription_name}-eventbridge-target")
+  target_dlq_name     = coalesce(var.target_dlq_name, "${var.subscription_name}-target-dlq")
 }
 
 # --------------------------------------------------------------------------
@@ -126,6 +127,44 @@ resource "aws_cloudwatch_event_rule" "this" {
   tags           = local.tags
 }
 
+# EventBridge can fail to deliver: a wrong queue policy, a throttled target.
+# Without this queue it drops the event after the retry window. The queue belongs
+# to the rule, so it lives in the platform account.
+resource "aws_sqs_queue" "target_dlq" {
+  provider = aws.platform
+
+  name                      = local.target_dlq_name
+  message_retention_seconds = var.target_dlq_message_retention_seconds
+  tags                      = local.tags
+}
+
+# Only this rule may park a failed delivery in the queue.
+resource "aws_sqs_queue_policy" "target_dlq" {
+  provider = aws.platform
+
+  queue_url = aws_sqs_queue.target_dlq.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowThisRuleToSendFailedDeliveries"
+        Effect = "Allow"
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+        Action   = "sqs:SendMessage"
+        Resource = aws_sqs_queue.target_dlq.arn
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn" = aws_cloudwatch_event_rule.this.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_cloudwatch_event_target" "this" {
   provider = aws.platform
 
@@ -134,4 +173,8 @@ resource "aws_cloudwatch_event_target" "this" {
   target_id      = var.subscription_name
   arn            = aws_sqs_queue.this.arn
   role_arn       = aws_iam_role.eventbridge_target.arn
+
+  dead_letter_config {
+    arn = aws_sqs_queue.target_dlq.arn
+  }
 }

@@ -61,6 +61,18 @@ variable "dlq_message_retention_seconds" {
   default     = 1209600
 }
 
+variable "target_dlq_name" {
+  description = "Name of the rule's dead-letter queue in the platform account. Defaults to the subscription name with a -target-dlq suffix."
+  type        = string
+  default     = null
+}
+
+variable "target_dlq_message_retention_seconds" {
+  description = "Retention time of messages in the rule's dead-letter queue. The demo default is 14 days."
+  type        = number
+  default     = 1209600
+}
+
 variable "eventbridge_execution_role_name" {
   description = "Name of the platform-side EventBridge execution role. Defaults to the subscription name with an -eventbridge-target suffix."
   type        = string

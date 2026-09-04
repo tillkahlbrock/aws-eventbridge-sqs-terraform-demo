@@ -101,8 +101,9 @@ verwechseln ist der häufigste Weg, ein Event zu verlieren.
 
 **EventBridge kann nicht zustellen** — falsche Queue Policy, gedrosseltes
 Target. EventBridge wiederholt 24 Stunden und bis zu 185-mal, danach verwirft es
-das Event, außer das Target hat eine Dead-Letter-Queue. Diese gehört zur Rule
-und liegt im Plattform-Account.
+das Event, außer das Target hat eine Dead-Letter-Queue. Das Modul legt diese
+Queue immer an. Sie gehört zur Rule und liegt im Plattform-Account, und nur
+diese Rule darf in sie schreiben.
 
 **Der Consumer kann nicht verarbeiten** — die Message kehrt nach dem Visibility
 Timeout zurück und wandert nach `maxReceiveCount` Empfängen in die DLQ im
@@ -144,7 +145,7 @@ terraform/
 ├── bootstrap/                  einmalig: State Bucket, Deploy Roles
 ├── modules/
 │   ├── event-platform/         Bus und Resource Policy
-│   └── event-consumer/         Subscription: Rule, Target, Queue, DLQ
+│   └── event-consumer/         Subscription: Rule, Target, Queue, beide DLQs
 └── stacks/
     ├── platform/               Plattformteam; producers.tf registriert Producer
     └── consumers/
@@ -157,11 +158,11 @@ Ein Repository, im Besitz des Plattformteams; `CODEOWNERS` erzwingt die
 Freigabe, eine Pipeline (Github Action) wendet an. Der State ist je Stack getrennt, damit ein
 Produktteam die geteilte Infrastruktur nicht versehentlich beschädigen kann.
 
-`event-consumer` setzt Redrive Policy, `maxReceiveCount`, Retention, Execution
-Role und beide Resource Policies. Es deklariert zwei Provider-Aliase und
-konfiguriert weder Credentials noch Region, funktioniert also für jeden
-Consumer-Account. Den Bus lösen Stacks über seinen Namen auf, nicht über fremden
-State.
+`event-consumer` setzt beide Dead-Letter-Queues, Redrive Policy,
+`maxReceiveCount`, Retention, Execution Role und alle Resource Policies. Es
+deklariert zwei Provider-Aliase und konfiguriert weder Credentials noch Region,
+funktioniert also für jeden Consumer-Account. Den Bus lösen Stacks über seinen
+Namen auf, nicht über fremden State.
 
 ## 4. Developer Experience und Golden Path
 

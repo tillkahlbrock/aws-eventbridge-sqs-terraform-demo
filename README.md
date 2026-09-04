@@ -2,7 +2,8 @@
 
 Prototyp einer plattformweiten Lösung für asynchrone Kommunikation zwischen
 Services: ein geteilter EventBridge Bus im Plattform-Account, je Consumer eine
-SQS Queue mit Dead-Letter-Queue im Workload-Account, alles in Terraform, dazu
+SQS Queue mit Dead-Letter-Queue im Workload-Account und eine zweite
+Dead-Letter-Queue an der Rule im Plattform-Account, alles in Terraform, dazu
 ein kleines Paket für den Event-Envelope und je ein Beispiel für Producer und
 Consumer.
 
